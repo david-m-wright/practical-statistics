@@ -1,0 +1,43 @@
+---
+title: "Quarto example"
+author: "Put your name here"
+format: html
+self-contained: true
+date: last-modified
+date-format: iso
+toc: true
+editor: visual
+---
+
+```{r}
+#| label: setup
+
+# Use this chunk to setup the environment for the analysis. 
+
+# Load the required libraries
+
+# Load the Covid dataset
+
+```
+
+
+## Introduction
+
+
+
+## Descriptive statistics
+
+
+
+## Regression modelling
+
+```{r}
+#| label: tbl-covid-multi
+#| tbl-cap: Regression model of cumulative Covid-19 case count.
+
+# Fit regression model here
+
+```
+
+
+

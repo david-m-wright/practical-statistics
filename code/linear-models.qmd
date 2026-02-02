@@ -1,0 +1,293 @@
+---
+title: "Reporting descriptive statistics and regression models"
+author: "David M Wright - d.wright@qub.ac.uk"
+format: html
+date: last-modified
+date-format: iso
+toc: true
+self-contained: true
+editor: visual
+---
+
+## Setup
+
+We will be using a set of Covid-19 case counts from the UK.
+
+Before moving on, download the following files from Canvas and put them in your `data` folder:
+
+1.  `data_2023-Jan-12.csv`
+
+Then load the required packages and datasets. The package `gt_summary` will be used to format high quality tables. Install it if necessary (`install.packages("gt_summary")`).
+
+An additional categorical variable will be added to the `covid` data frame, a factor indicating whether the row corresponds to a date in winter or not.
+
+```{r load-data}
+library(tidyverse)
+library(here)
+library(gtsummary)
+
+# Load the data and separate out the date components
+covid <- read_csv(here("data/data_2023-Jan-12.csv")) %>% 
+  mutate(year = year(date),
+         month = month(date),
+         day = day(date),
+         # Label months as a factor with levels in the correct order
+         month_lab = factor(month.abb[month], levels = month.abb)
+         ) %>% 
+  
+  # Classify rows into winter/non-winter
+  mutate(season = factor(if_else(month_lab %in% c("Dec", "Jan", "Feb"), "Winter", "Non-winter"))) 
+covid
+
+```
+
+## Presenting descriptive statistics
+
+The first stage of analysis is to explore the data and present descriptive statistics. We start by tabulating three of the variables using the `tbl_summary()` function.
+
+
+```{r oneway1}
+covid %>% 
+  tbl_summary(include = c(newCasesBySpecimenDate, year, season)) 
+```
+
+If the variable labels don't look good they can be relabelled using the `label` argument. If many tables are to be produced using these variables it may be easier to use `rename()` after loading the data to choose variable names that will display well without modification. For now we will continue labelling at the output stage.
+
+```{r oneway2}
+covid %>% 
+  tbl_summary(include = c(newCasesBySpecimenDate, year, season),
+              label = list(newCasesBySpecimenDate = "New Cases",
+                           year = "Year",
+                           season = "Season")) 
+```
+
+By default, median and inter-quartile range are displayed for continuous variables and counts and column percentages for categorical variables. Changing the summary statistics can be done using the `statistic` argument. This uses a `list`, a data structure that can contain different types of data in each element, including other data structures. For example, a list can be populated with a data frame as each element. Here, the list contains a set of `formulas`, symbolic representations of how the different types of variables are to be displayed. Formulas in R always contain a ~ (tilde) and are also used in regression modelling. 
+
+The formula `all_continuous() ~ "{mean} ({sd})"` indicates that continuous variables will be summarised by mean and standard deviation. Categorical variables will be summarised displaying both the cell count `n` and the total cell count `N`, along with the percentage.
+
+```{r oneway3}
+covid %>% 
+  tbl_summary(include = c(newCasesBySpecimenDate, year, season),
+              label = list(newCasesBySpecimenDate = "New Cases",
+                           year = "Year",
+                           season = "Season"),
+              statistic = list(
+                all_continuous() ~ "{mean} ({sd})",
+                all_categorical() ~ "{n} / {N} ({p}%)"
+              )) 
+```
+
+
+`gt_summary` usually guesses the type of statistic to produce quite well but this can be overridden for particular variables by specifying them directly in the `statistic` list.
+
+```{r oneway4}
+covid %>% 
+  tbl_summary(include = c(newCasesBySpecimenDate, year, season),
+              label = list(newCasesBySpecimenDate = "New Cases",
+                           year = "Year",
+                           season = "Season"),
+              statistic = list(
+                all_continuous() ~ "{mean} ({sd})",
+                all_categorical() ~ "{n} / {N} ({p}%)",
+                year ~ "{n}"
+              )) 
+```
+The approach can be extended to cross tabulating two categorical variables using the `tbl_cross()` function. Here we tabulate `year` by `season`.
+
+```{r cross1}
+covid %>%
+  tbl_cross(row = year,
+            col = season,
+            label = list(year = "Year",
+                         season = "Season"),
+            percent = "column")
+```
+
+In public health and epidemiology a common task is to compare two groups (for example a diseased and a non-diseased group, i.e. a binary outcome variable) across a set of other characteristics (e.g. age, sex, socio-economic status). Look at *Table 1* in almost any epidemiology publication for an example.
+
+In the Covid dataset we can tabulate both numeric variables (e.g. `NewCasesbySpecimenDate`) and categorical variables (e.g. `year`) by the categorical variable `season`. 
+
+```{r twoway1}
+covid %>% 
+  tbl_summary(include = c(newCasesBySpecimenDate, year, season),
+              label = list(newCasesBySpecimenDate = "New Cases",
+                           year = "Year",
+                           season = "Season"),
+              by = season) 
+```
+
+There are many ways that the table can be customised. The number of digits to report can be set using the `digits` argument. In this example, `newCasesBySpecimenDate` will be displayed to 1 decimal place.
+
+Further formatting can be added using the `add_` and `modify_` families of functions. See the help page `?gtsummary` for a full list of the functions available and short examples of their use. Follow the link to the `vignettes` for more in depth examples.
+
+Here we add a third column, `Overall` containing all rows of data using the `add_overall()` function and add a caption.
+
+```{r twoway2}
+covid %>% 
+  tbl_summary(include = c(newCasesBySpecimenDate, year, season),
+              label = list(newCasesBySpecimenDate = "New Cases",
+                           year = "Year",
+                           season = "Season"),
+              digits = list(newCasesBySpecimenDate ~ 1),
+              by = season) %>% 
+  add_overall() %>% 
+  modify_caption("**Records and new cases by season**") %>% 
+  bold_levels()
+```
+
+### Including inferential statistics
+
+`gtsummary` includes the option to add p-values to tables of descriptive statistics using the function `add_p()`. Statistical tests are conducted in the background and the results added to the output table. 
+
+**This function should only be used with caution.** 
+
+It is important to check that the test chosen by the package (e.g. t-test, chi-squared test) is appropriate for each variable selected. The test will be listed as a footnote to the table. If it not appropriate, select a different one using the `test` argument. For example, when comparing means of continous variables across two groups the default test is the Wilcoxon rank sum test. Depending on the distribution of the data we might wish to specify a t-test should be used instead as in this example.
+
+```{r infer1}
+covid %>% 
+  tbl_summary(include = c(newCasesBySpecimenDate, year, season),
+              label = list(newCasesBySpecimenDate = "New Cases",
+                           year = "Year",
+                           season = "Season"),
+              by = season) %>% 
+  add_p(test = all_continuous() ~ "t.test")
+```
+
+
+### Exercise
+
+Tabulate descriptive statistics for the cumulative number of cases, the month label (e.g. Jan, Feb, ...) and the season by year.
+For continuous variables display, the mean, standard deviation and range. 
+Include a suitable caption and format to publication quality.
+
+::: {.callout-caution collapse="true"}
+
+### Solution
+
+```{r twoway-solution}
+covid %>% 
+  tbl_summary(include = c(cumCasesBySpecimenDate, year, season, month_lab),
+              label = list(cumCasesBySpecimenDate = "Cumulative Cases",
+                           year = "Year",
+                           season = "Season",
+                           month_lab = "Month"),
+              statistic = list(all_continuous() ~ "{median} ({sd}) [{min}, {max}]"),
+              by = year) %>% 
+  modify_caption("**Covid case counts by year**") 
+```
+
+:::
+
+## Displaying regression models
+
+Regression models form the basis for many statistical analyses. In R, linear models are fitted using `lm()` and generalised linear models like logistic regression are fitted with `glm()`.
+
+Model fitting in R is specified using a `formula` to give a compact representation of the proposed model. A simple univariate linear regression will have the form:
+
+`response ~ predictor`
+
+A multiple regression model will have the form:
+
+`response ~ predictor_1 + predictor_2 + ... + predictor_m`
+
+### Univariate models
+
+Here we fit a model with `newCasesBySpecimenDate` as the response and `year` as the only predictor.
+
+```{r lm1}
+lm_uni <- lm(newCasesBySpecimenDate ~ year, data = covid)
+summary(lm_uni)
+```
+The plain text console output from `summary()` is good for quickly checking the model but is not suitable for including in publications so use `tbl_regression()` to produce a formatted output. By default, the intercept is omitted but here we include it for comparison with the plain text output.
+
+```{r lm2}
+tbl_regression(lm_uni,
+               intercept = TRUE)
+```
+
+The default output presents just the estimated model coefficients `Beta`. Model fit statistics like $R^2$ can either be presented as additional rows in the table or as a footnote.
+
+```{r lm3}
+tbl_regression(lm_uni) %>% 
+  add_glance_table()
+
+tbl_regression(lm_uni) %>% 
+  add_glance_source_note()
+```
+
+In the previous model, `year` was treated as a continuous variable. It could also be treated as categorical by turning it into a factor. This can be done using `mutate()` before the model is fitted. If it makes more sense to treat it as categorical throughout the entire analysis, perfom the mutate immediately after the data are loaded. 
+
+Regression models can be built into a pipeline but because the first argument to `lm()` is `model`, rather than `data`, the `data` argument has to be explicitly specified with a `.` representing the data travelling through the pipe. In this model the first level of the factor (2020) is considered the reference category.
+
+```{r lm4}
+covid %>% 
+  mutate(year = as_factor(year)) %>% 
+  lm(newCasesBySpecimenDate ~ year, data = .) %>% 
+  tbl_regression()
+```
+
+If there are many predictor variables, each may be fitted singly in a univariate model before some are selected for inclusion in multiple regression. `tbl_uvregression()` automates the univariate fitting process. 
+
+```{r lm5}
+covid %>% 
+  tbl_uvregression(y = newCasesBySpecimenDate,
+                   include =  c(year, season),
+                   method = "lm")
+
+```
+
+
+### Multiple regression
+
+Fit a multiple regression of `newCasesBySpecimenDate` with both `year` and `season` as predictors.
+
+```{r mul1}
+lm_multi <- lm(newCasesBySpecimenDate ~ year + season, data = covid)
+summary(lm_multi)
+
+```
+
+Here the `year` and `season` variable names are replaced using the `label` argument for presentation. 
+
+```{r mul2}
+lm_multi %>% 
+  tbl_regression(label = list(year = "Year",
+                           season = "Season"))
+```
+
+We can fit and display a logistic regression in a similar manner to obtain Odds Ratios (ORs). Use the `glm()` function and set `family = "binomial"` to perform a logistic regression. Here `season` is the response and `year` and `newCasesBySpecimenDate` is the predictor (this is not a useful or informative model to fit, it is chosen for illustration only).
+
+```{r mul3}
+glm_uni <- glm(season ~ year + newCasesBySpecimenDate, 
+               family = "binomial",
+               data = covid)
+
+glm_uni %>% 
+  tbl_regression(exponentiate = TRUE)
+```
+
+### Exercise
+
+Fit a linear regression model with `newReinfectionsBySpecimenDate` as the response with year and labelled month as the predictors.
+Display the model coefficients including the intercept and include a footnote containing model fit statistics.
+Format to publication standard.
+
+::: {.callout-caution collapse="true"}
+
+### Solution
+
+```{r reg-solution}
+lm_reinf <- lm(newReinfectionsBySpecimenDate ~  year + month_lab, data = covid)
+
+lm_reinf %>% 
+  tbl_regression(intercept = TRUE,
+                 label = list(year = "Year",
+                           month_lab = "Month")) %>% 
+  add_glance_source_note() %>% 
+  modify_caption("**Multiple regression of new Covid-19 reinfections.**")
+
+```
+
+:::
+
+

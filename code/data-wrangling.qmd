@@ -1,0 +1,207 @@
+---
+title: "Data wrangling"
+author: "David M Wright - d.wright@qub.ac.uk"
+format: html
+date: last-modified
+date-format: iso
+toc: true
+self-contained: true
+editor: visual
+---
+
+## Setup
+
+We will be using two datasets. One is a freely available sample of anonymised 2011 Census returns, provided for teaching purposes by the Office for National Statistics. The second is a published set of Covid-19 case counts for the UK. Before moving on, download the following files from Canvas and put them in your `data` folder:
+
+1.  `2011 Census Microdata Teaching File.csv`
+
+2.  `Microdatateachinguserguide.pdf`
+
+3.  `Microdatateachingvariablels.pdf`
+
+4.  `data_2023-Jan-12.csv`
+
+Then load the required packages and the census data.
+
+```{r load-data}
+library(tidyverse)
+library(here)
+cens <- read_csv(here("data/2011 Census Microdata Teaching File.csv"), skip = 1, na = "-9")
+```
+
+## Selecting and filtering
+
+The `dplyr` package (part of the `tidyvese`) has simplified handling of large datasets in R using a few key functions.
+
+To *select* columns, use `select()`. If column names contain spaces, quote within backticks \`\`.
+
+```{r select-1}
+select(cens, Age)
+select(cens, Age, `Family Composition`)
+select(cens, Age:Health)
+```
+
+Rows are extracted using `filter()`.
+
+```{r filter-1}
+filter(cens, Student == 1)
+# Comma acts as AND operator within filter()
+filter(cens, Student == 1, `Family Composition` != 1)
+# Same output using &
+filter(cens, Student == 1 & `Family Composition` != 1)
+# Using the OR operator
+filter(cens, Student == 1 | `Family Composition` != 1)
+```
+
+The first argument for either `filter()` or `select()` is the data frame on which to operate.
+
+## Pipes
+
+Data cleaning often requires lots of steps and the standard R syntax can get unwieldy. For example, suppose we want to filter a data frame and then select columns from it.
+
+New programmers may choose to use to make an intermediate object using the filter and input this as the argument to the select.
+
+```{r pipes-1}
+cens_filtered <- filter(cens, Student == 1 & `Family Composition` != 1)
+select(cens_filtered, Region, Religion, Industry)
+```
+
+This is easy to follow but has the disadvantage that the environment can quickly become filled up with intermediate objects. If the data is changed upstream it is difficult to keep track of whether the intermediate object has been regenerated to reflect the change.
+
+The functions could be nested to achieve the same result.
+
+```{r pipes-2}
+select(filter(cens, Student == 1 & `Family Composition` != 1), Region, Religion, Industry)
+```
+
+This is ok but if there are many more operations it is difficult to read and ensure brackets are closed in the right places.
+
+One of the `tidyverse` packages, `magrittr` provides a solution that is easier to read, providing the pipe operator `%>%`. The shortcut for the pipe operator is `Ctrl` + `Shift` + `M` on a PC and `Cmd` + `Shift` + `M` on a Mac. The select and filter above can be performed using.
+
+```{r pipes-3}
+cens %>% 
+  filter(Student == 1 & `Family Composition` != 1) %>% 
+  select(Region, Religion, Industry)
+```
+
+We can think of the `cens` dataset travelling from the top to the bottom line, with a modification made at each section of the pipe. The `%>%` operator takes the argument on the left and feeds it in as the first argment to the function on the right. Therefore, we don't need to specify these arguments in either `filter()` or `select()` because R knows that whatever is coming down the pipe must be the data frame to operate on. We can read the pipe operator as "then" when describing the operations. e.g. Take `cens` and then filter it and then select from it. There is no limit to the length of a pipe. Assignments can be done in the usual manner.
+
+```{r pipes-4}
+cens_piped <- cens %>% 
+  filter(Student == 1 & `Family Composition` != 1) %>% 
+  select(Region, Religion, Industry)
+cens_piped
+```
+
+### Exercise
+
+Use pipes to subset the `cens` dataset to include only the age, marital status and general health of respondents living in Yorkshire and the Humber.
+
+::: {.callout-caution collapse="true"}
+### Solution
+
+```{r pipes-5}
+cens %>% 
+  filter(Region == "E12000003") %>% 
+  select(Age, `Marital Status`, Health)
+```
+:::
+
+## Mutate
+
+New columns can be added to a data frame or existing columns altered using the `mutate()` function. We might wish to derive a new column by labelling one of the factors. Several operations can be conducted within the same `mutate()`. Here, we convert `Population Base` to a factor first and then recorde it.
+
+```{r mutate-1}
+cens %>% 
+  mutate(`Population Base` = as_factor(`Population Base`),
+          pop_lab = fct_recode(`Population Base`, 
+                               `Usual resident` = "1",
+                               `Student living away from home during term-time` = "2",
+                               `Short-term resident` = "3"
+                                 )) %>%
+  select(`Population Base`, pop_lab)
+```
+
+## Grouping and summarising
+
+A frequent analysis task is to split the data into groups, apply some function to each group and then put the results back together again. This is called *split-apply-combine*.
+
+For instance with the Covid-19 case series, we might wish to count the number of new cases by calendar year. First we will extract component parts of the dates so that they can be used to define groups.
+
+```{r group-1}
+# Load the data and separate out the date components
+covid <- read_csv(here("data/data_2023-Jan-12.csv")) %>% 
+  mutate(year = year(date),
+         month = month(date),
+         day = day(date),
+         # Label months as a factor with levels in the correct order
+         month_lab = factor(month.abb[month], levels = month.abb)
+         )
+covid
+```
+
+
+We first use `group_by()` to group the rows and then use `summarise()` to compute the total cases per year. This will return a data frame of just three rows, one for each year.
+
+```{r group-2}
+covid %>% 
+  group_by(year) %>% 
+  summarise(total_cases = sum(newCasesBySpecimenDate))
+```
+
+Multiple variables can be used for grouping.
+
+```{r group-3}
+covid %>% 
+  group_by(year, month_lab) %>% 
+  summarise(total_cases = sum(newCasesBySpecimenDate))
+```
+
+`group_by()` has returned a grouped tibble (data frame). To ungroup it, use `ungroup()` or set the `.groups` argument to `"drop"` within `summarise()`
+
+```{r group-4}
+cases_month <- covid %>% 
+  group_by(year, month_lab) %>% 
+  summarise(total_cases = sum(newCasesBySpecimenDate), .groups = "drop")
+```
+
+## Arrange
+
+Sometimes, we want to arrange (sort) the rows in a data frame. To find the months with the fewest new cases we could use.
+
+```{r arrange-1}
+cases_month %>% 
+  arrange(total_cases)
+```
+
+Arranging can also be done in descending order and within each year.
+
+```{r arrange-2}
+cases_month %>% 
+  arrange(year, desc(total_cases))
+```
+
+## Count
+
+The example above showed how to sum values within groups. Often, we want to count the number of rows by groups. `count()` does this.
+
+```{r count-1}
+covid %>% 
+  count(year, month_lab)
+```
+
+### Exercise
+
+Calculate the number of `newReinfectionsBySpecimenDate` by year-month combination, arranging in descending count order and returning only months with \> 50,000 reinfections.
+
+::: {.callout-caution collapse="true"}
+### Solution
+
+```{r count-2}
+covid %>% 
+  group_by(year, month_lab) %>% 
+  summarise(reinfections = sum(newReinfectionsBySpecimenDate), .groups = "drop") %>% 
+  arrange(desc(reinfections)) %>% 
+  filter(reinfections > 50000)
+```
+:::

@@ -1,0 +1,69 @@
+---
+title: "Quarto example - possible solution"
+author: "A. Student"
+format: html
+self-contained: true
+date: last-modified
+date-format: iso
+toc: true
+editor: visual
+---
+
+```{r}
+#| label: setup
+#| include: false
+
+# Use this chunk to setup the environment for the analysis. 
+
+# Load the required libraries
+library(tidyverse)
+library(here)
+library(gtsummary)
+
+# Load the Covid dataset
+covid <- read_csv(here("data/data_2023-Jan-12.csv")) 
+```
+
+## Introduction
+
+The dataset consists of Covid-19 case counts from the UK. It comprises `r nrow(covid)` rows and `r ncol(covid)` columns.
+
+## Descriptive statistics
+
+The cumulative number of Covid cases increased most rapidly at the beginning of 2022 (@fig-covid-cumulative).
+
+```{r}
+#| label: fig-covid-cumulative
+#| fig-cap: Cumulative Covid-19 case count.
+
+
+covid %>% 
+  ggplot(aes(x = date, y = cumCasesBySpecimenDate)) +
+  geom_line() +
+  theme_light() +
+  labs(x = "Date",
+       y = "Cumulative cases") +
+  scale_y_continuous(labels = ~formatC(., format = "fg", big.mark = ","))
+
+```
+
+## Regression modelling
+
+A regression model of the cumulative number of cases was fitted:
+
+`cumCasesBySpecimenDate ~ newFirstEpisodesBySpecimenDate + newReinfectionsBySpecimenDate`
+
+```{r}
+#| label: tbl-covid-multi
+#| tbl-cap: Regression model of cumulative Covid-19 case count.
+#| echo: false
+
+# Fit regression model here
+covid_mod <- lm(cumCasesBySpecimenDate ~ newFirstEpisodesBySpecimenDate + newReinfectionsBySpecimenDate, data = covid)
+
+covid_mod %>% 
+  tbl_regression(intercept = TRUE) %>% 
+  add_glance_source_note()
+
+
+```

@@ -1,0 +1,280 @@
+---
+title: "Plotting with R"
+author: "David M Wright - d.wright@qub.ac.uk"
+format: html
+date: last-modified
+date-format: iso
+toc: true
+self-contained: true
+editor: visual
+---
+
+## Setup
+
+We will be using two datasets. One is a freely available sample of anonymised 2011 Census returns, provided for teaching purposes by the Office for National Statistics. The second is a published set of Covid-19 case counts for the UK. Before moving on, download the following files from Canvas and put them in your `data` folder:
+
+1.  `2011 Census Microdata Teaching File.csv`
+
+2.  `Microdatateachinguserguide.pdf`
+
+3.  `Microdatateachingvariablels.pdf`
+
+4.  `data_2023-Jan-12.csv`
+
+Then load the required packages and datasets.
+
+```{r load-data}
+library(tidyverse)
+library(here)
+# Load the census dataset
+cens <- read_csv(here("data/2011 Census Microdata Teaching File.csv"), skip = 1, na = "-9")
+
+# Load the covid dataset
+covid <- read_csv(here("data/data_2023-Jan-12.csv")) %>% 
+  mutate(year = year(date),
+         month = month(date),
+         day = day(date),
+         # Label months as a factor with levels in the correct order
+         month_lab = factor(month.abb[month], levels = month.abb)
+         )
+```
+
+Then count the number of new cases by calendar year and month for the Covid dataset.
+
+```{r count-cases}
+cases_month <- covid %>% 
+  group_by(year, month_lab) %>% 
+  summarise(total_cases = sum(newCasesBySpecimenDate)) %>% 
+  ungroup()
+```
+
+## Plotting architecture
+
+R contains two complete graphics engines, one contained in the base distribution and centred on `plot()`, and a more modern version from the `tidyverse` package `ggplot2`. We will use the latter as it has a more consistent syntax that works well with the other `tidyverse` packages.
+
+`ggplot()` works best when data are in long format.
+
+`ggplot()` has a layered approach, with each plot built gradually from the ground up by adding features until the desired plot is complete.
+
+The most basic components of chart are:
+
+* Data  
+* Aesthetic mappings (aes) that describe how variables are mapped onto graphical attributes including the axes, colour, fill and shape.   
+* Geometric objects (geoms) specifying the type of chart to be produced (e.g. bar plot `geom_bar()`, line plot `geom_line()`).   
+
+To plot new Covid cases by date we could use:
+
+```{r plot-1}
+covid %>% 
+  ggplot(aes(x = date, y = newCasesBySpecimenDate)) + 
+  geom_line()
+```
+
+The data `covid` always comes first and then it is piped `%>%` into `ggplot()`, as the first argument of `ggplot()` is always the data to be plotted. Next comes the aesthetic mapping `aes()` which is used to define which variables will be plotted on the x and y axes. Finally, as this is to be a line chart, `geom_line()` is used to produce the chart. Once a ggplot has been defined, all subsequent _layers_ (geoms) are added using a trailing `+` at the end of a row, not the pipe operator.
+
+ggplots can be assigned to objects and then plotted later. Sometimes it is useful to assign the base plot to an object and then experiment with different geoms using the new object.
+
+```{r plot-2}
+covid_series <- covid %>% 
+  ggplot(aes(x = date, y = newCasesBySpecimenDate)) 
+covid_series # Maps the axes but nothing on them
+```
+
+Trying a point plot. Remember to use `+` rather than `%>%`
+
+```{r plot-3}
+covid_series +
+  geom_point()
+
+```
+
+Perhaps it would be better if there was a line as well as points. A second geom can be added as a second layer.
+
+```{r plot-4}
+covid_series +
+  geom_point() +
+  geom_line()
+```
+
+We can alter almost any aspect of the plotting by specifying arguments to the various layers. Suppose we wish to make the points more transparent to not cover the line, and also make the line red.
+
+```{r plot-5}
+covid_series +
+  geom_point(alpha = 0.3) +
+  geom_line(colour = "red")
+```
+
+Colours and line types do not always have to be the same across the whole plot. They can vary according to the underlying data. For this to happen they must be specified within the `aes()` aesthetic mapping for the relevant layer.
+
+```{r plot-6}
+covid_series +
+  geom_point(aes(colour = year))
+```
+
+The plot above might look better if the years were coded as factors instead.
+
+```{r plot-7}
+covid_series +
+  geom_point(aes(colour = as.factor(year)))
+```
+
+## Boxplots
+
+Boxplots are good for showing the variation within groups in a compact form. To plot multiple boxes sensibly, the x axis must be a factor.
+
+```{r boxplot-1}
+covid %>% 
+  mutate(year = as.factor(year)) %>% 
+  ggplot(aes(x = year, y = newCasesBySpecimenDate)) +
+  geom_boxplot()
+```
+
+It can be useful to add data points to boxplots to show the true spread of the data. Here we "jitter" the points so that they are not all stacked on top of each other.
+
+```{r boxplot-2}
+covid %>% 
+  mutate(year = as.factor(year)) %>% 
+  ggplot(aes(x = year, y = newCasesBySpecimenDate)) +
+  geom_boxplot() +
+  geom_jitter(width = 0.2, alpha = 0.2, colour = "red")
+```
+
+## Barplots
+
+Barplots work best when the position of the bars is specified according to factors. `geom_bar()` will simply count the rows belonging to each factor level. Often we want to plot a value (e.g. a total) that has already been calculated for this level. For this we use `geom_col()`.
+
+```{r barplot-1}
+cases_month %>% 
+  ggplot(aes(x = month_lab, y = total_cases)) +
+  geom_col()
+```
+Colours of the bars can be split by year.
+
+```{r barplot-2}
+cases_month %>% 
+  mutate(year = as_factor(year)) %>% 
+  ggplot(aes(x = month_lab, y = total_cases)) +
+  geom_col(aes(fill = year))
+```
+
+Bars can be put next to each other with the `position` arguments.
+
+```{r barplot-3}
+cases_month %>% 
+  mutate(year = as_factor(year)) %>% 
+  ggplot(aes(x = month_lab, y = total_cases)) +
+  geom_col(aes(fill = year), position = "dodge")
+```
+
+# Facetting
+
+Creating "small multiple" type plots for comparison agains each other, we can use facetting.
+
+```{r facet-2}
+cases_month %>% 
+  mutate(year = as_factor(year)) %>% 
+  ggplot(aes(x = month_lab, y = total_cases)) +
+  geom_col() +
+  facet_wrap(~year)
+```
+
+This can be improved if the facets are stacked vertically.
+
+```{r facet-3}
+cases_facet <- cases_month %>% 
+  mutate(year = as_factor(year)) %>% 
+  ggplot(aes(x = month_lab, y = total_cases)) +
+  geom_col(aes(colour = year)) +
+  facet_wrap(~year, ncol = 1)
+cases_facet
+```
+
+# Labelling
+
+Axis labels and legend titles are taken from the variable names of the input data by default. For display purposes it is useful to be able to expand the names and provide titles for the chart.
+
+The `labs()` function can specify:
+
+* `title`.  
+* `subtitle`.  
+* `caption`   
+* `...` names for values and aesthetics used in the plot.   
+
+
+```{r facet-4}
+cases_facet +
+  labs(title = "New Covid-19 cases by year.",
+       subtitle = "UK data",
+       x = "Month",
+       y = "Total number of new cases per month",
+       colour = "Year")
+```
+
+# Themes
+
+A final touch for a chart may be applying a theme to deal with purely aesthetic aspects like the size and position of axis text. There are a number of different themes included with ggplot (try `theme_bw()`, `theme_light()`, `theme_dark()`) or you can specify your own.
+
+
+```{r theme-1}
+cases_facet +
+  labs(title = "New Covid-19 cases by year.",
+       subtitle = "UK data",
+       x = "Month",
+       y = "Total number of new cases per month",
+       colour = "Year") +
+  theme_light()
+```
+
+Changing the axis text size is important for slide presentations.
+
+```{r theme-2}
+cases_facet +
+  labs(title = "New Covid-19 cases by year.",
+       subtitle = "UK data",
+       x = "Month",
+       y = "Total number of new cases per month",
+       colour = "Year") +
+  theme_light() +
+  theme(axis.text.x = element_text(size = 16)) 
+```
+
+Converting the y axis scale from scientific notation can be done by altering the `scale_y_continous()` arguments.
+
+```{r theme-3}
+cases_facet +
+  labs(title = "New Covid-19 cases by year.",
+       subtitle = "UK data",
+       x = "Month",
+       y = "Total number of new cases per month",
+       colour = "Year") +
+  theme_light() +
+  theme(axis.text.x = element_text(size = 16)) +
+  scale_y_continuous(labels = ~formatC(., format = "fg", big.mark = ","))
+```
+
+### Exercise
+
+Generate a scatter plot of the number of first episodes aginst the cumulative number of reinfections. Have separate facets for each year and format the chart to publication standard.
+
+::: {.callout-caution collapse="true"}
+
+### Solution
+
+```{r exer-1}
+covid %>% 
+  ggplot(aes(x = newFirstEpisodesBySpecimenDate, y = newReinfectionsBySpecimenDate)) +
+  geom_point() +
+  facet_wrap(~year) +
+  labs(x = "Number of first infections",
+       y = "Number of reinfections",
+       title = "Daily count of Covid-19 first infections and reinfections.") +
+  scale_y_continuous(labels = ~formatC(., format = "fg", big.mark = ",")) +
+  scale_x_continuous(labels = ~formatC(., format = "fg", big.mark = ",")) +
+  theme_light() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1),
+        axis.text = element_text(size = 14)) 
+```
+
+:::
+
+

@@ -1,0 +1,219 @@
+---
+title: "Reporting with Quarto"
+author: "David M Wright - d.wright@qub.ac.uk"
+format: html
+self-contained: true
+date: last-modified
+date-format: iso
+toc: true
+editor: visual
+---
+
+## Setup
+
+Before continuing, download the following files from Canvas and put them in your `code` folder:
+
+1.  `quarto-example.qmd`
+
+Download the following files from Canvas and put in your `data` folder:
+
+1.  `data_2023-Jan-12.csv`
+
+## Introduction to Quarto
+
+Presenting results of statistical analysis has traditionally involved generating figures and tables in specialised statistical software and then transferring these into a word processor document for the final report. This is time consuming and vulnerable to transcription errors, especially when multiple versions of an analysis have been conducted. It is easy to lose track of which version each table or figure has come from.
+
+A more modern approach is to use *literate programming* techniques to combine statistical code, output and written commentary in a single document. In RStudio, this is done inside a Quarto (`.qmd`) document. A Quarto document has two main components: written commentary and chunks of R code. When a chunk of R code is executed the output appears inside the `.qmd` file below the code chunk, instead of being output to the console.
+
+This creates an interactive notebook, a complete record of the analysis, where figures and tables can be updated by altering the code and regenerated live by executing the amended code. Once analysis is complete, the final version of the notebook is *rendered* to produce a static file in one of several formats that can be presented and shared. The rendered file is a snapshot of the analysis including written commentry, the figures and tables and the code used to generate them.
+
+Available file formats include:
+
+-   `.html` - a format that can be opened in any web browser
+-   `.pdf` - portable document format\
+-   `.docx` - format that can be opened in Microsoft Word and similar packages
+
+The default option of `.html` is best for most purposes, it is lightweight and cannot easily be edited manually, which would defeat the purpose of literate programming.
+
+The teaching notes provided for this course have been produced in Quarto, illustrating the type of output that can be produced.
+
+## Basic operations
+
+Open the file `quarto-example.qmd` in RStudio. This is a minimal example of a Quarto document that can be copied and adapted to make your own analysis documents.
+
+The document will either appear as source code, which looks like a plain text document, or in a form that looks like a word processor document with headers and formatting. This is close to what the rendered document will look like. To switch between views, click the `Source` or `Visual` buttons on the left hand side of the menu bar. The document can be edited in either view so chose whichever you prefer to work in.
+
+In the `Visual` view the written commentary can be edited as in a word processor. The menu bar contains **bold** and *italic* text markup, along with highlighting for `code`. Bulleted and numbered lists can be started here also.
+
+### YAML header
+
+At the top of the document is a section of code marked at the top and bottom with three dashes `---`. This is not R code, it is in another language called YAML, and is used to setup the document. The fields here will populate the top of the rendered document and define how it will be rendered:
+
+`title` and `author` fields are self-explanatory.
+
+`format: html` indicates the file format that will be produced when the document is rendered.
+
+`self-contained: true` ensures that only a single file is produced when the document is rendered. This is a sensible option because it makes it easier to share your work.
+
+`date: last-modified` and `date-format: iso` will insert the date of the last modification when the document is rendered. This is helpful for keeping track of different versions of an analysis.
+
+`toc: true` produces a Table of Contents, displayed on the top right hand side.
+
+`editor: visual` sets the default view when editing the document.
+
+Be very careful when editing YAML, not only is it **case-sensitive** like R, it is also **position-sensitive** so the presence of spaces for indentation must be exactly right. If you get stuck and can't find the source of a syntax error, copy and paste a working YAML header and edit it one field at a time.
+
+### Code chunks
+
+Both views will have grey sections containing chunks of R code. When executed, using `Ctrl` + `Enter` or by pressing the `Play` button on the top right of the chunk, the R output will be displayed below the chunk. R will have access to all the objects in the current environment when executing chunks interactively in this way.
+
+To make a new chunk, press the green `C+` button on the top tool bar, towards the right.
+
+```{r}
+10+10
+```
+
+To the left of the `Play` button is another button that will execute all the preceding chunks. In the same way that an R command in a script will often depend on a series of previous commands to run properly, a chunk may not function unless all of the preceding chunks have been executed. Also, when the document is rendered, R will not have access to the current environment. Therefore, any object called within a code chunk **must** be assigned in a previous chunk, or an error will be raised and the document **will not** render.
+
+Most analyses will require access to other R packages and external datafiles. It is useful to put in a 'setup' chunk at the beginning of the Quarto document (under the YAML header) to load these.
+
+```{r}
+#| message: false
+#| label: setup
+
+# Load the required packages
+library(tidyverse)
+library(here)
+library(gtsummary)
+
+# Load the data and separate out the date components
+covid <- read_csv(here("data/data_2023-Jan-12.csv")) %>% 
+  mutate(year = year(date),
+         month = month(date),
+         day = day(date),
+         # Label months as a factor with levels in the correct order
+         month_lab = factor(month.abb[month], levels = month.abb)
+         ) %>% 
+  
+  # Classify rows into winter/non-winter
+  mutate(season = factor(if_else(month_lab %in% c("Dec", "Jan", "Feb"), "Winter", "Non-winter"))) 
+
+```
+
+### Chunk options
+
+When analysing data it is useful to have both the code and the output included in the final rendered document and this is the default setting in Quarto. This makes it easy to see how figures and tables were generated.
+
+However, when presenting a final report it is sensible to hide the code to avoid distracting the reader. This can be done by setting the chunk `echo` option to `false` in the chunk whose code we wish to hide. Chunk options are written in YAML so be careful about spaces. They are preceded by `#|` which distinguishes them from ordinary R comments.
+
+```{r}
+#| echo: false
+#| label: chunk-label
+10+10
+```
+
+Other useful chunk options:
+
+`label:` It is good practice to include a chunk label using this option as this enables cross referencing and is useful for debugging code. Chunk labels should be short, meaningful and restricted to letters, numbers and dashes (`-`). The prefixes `tbl` and `fig` are reserved for tables and figures and should only be used if the output is one of these types.
+
+`tbl-cap:` and `fig-cap:` These are used to specify captions for tables and figures respectively.
+
+`include:` Set this to `false` to remove the chunk entirely from the rendered document. Note that the code will still attempt to run and can still raise an error. If a chunk is causing problems, comment out the R code inside so the rest of the document can render until you have fixed the error.
+
+`warning:` and `message:` set these to `false` if you don't want these to be printed in the rendered output.
+
+### Rendering
+
+To render the document either click the `Render` button on the menu bar or use the shortcut `Ctrl` + `Shift` + `K`. This will save the `.qmd` file and open a tab in your web browser displaying the rendered document. If there are corrections needed, make them by editing the `.qmd` file in RStudio and then render again. The rendered file will be found in the `code` folder, with the same name as the `.qmd` file but with the extension `.html`. This is the file that can be shared and presented. It is a good idea to copy and rename the `.html` file and store it somewhere else because the version in the `code` folder will be overwritten the next time the `.qmd` file is rendered.
+
+## Figures
+
+Figures are produced in the usual way using `ggplot`. Make sure that the `fig-` prefix is used in the chunk label then it can be cross referenced from the text using the syntax `@fig-chunk-label` within the main commentary. For example, @fig-covid shows the association between number of new cases and new episodes in the Covid dataset. Note how the plot dimensions can be set by specifying `fig-width:` and `fig-height:` in the chunk options (default scale is in inches!).
+
+```{r}
+#| label: fig-covid
+#| fig-cap: Number of Covid cases and first episodes.
+#| echo: false
+#| fig-width: 7
+#| fig-height: 5
+covid_plot <- covid %>% 
+  ggplot(aes(x = newCasesBySpecimenDate, y = newFirstEpisodesBySpecimenDate)) +
+  geom_point() +
+  theme_light() +
+  labs(x = "New Cases",
+          y = "New First Episodes") +
+  scale_x_continuous(labels = ~formatC(., format = "fg", big.mark = ",")) +
+  scale_y_continuous(labels = ~formatC(., format = "fg", big.mark = ","))
+
+covid_plot
+
+```
+
+The figure rendering from a Quarto document is good enough for most purposes. For submission to a scientific journal, a high resolution file might be required. Use `ggsave()` to produce this with `dpi` set to at least 300. Size for the plot can be specified here also.
+
+```{r}
+ggsave(filename = here("high-res-covid-plot.tiff"),
+  width = 5,
+  height = 5,
+  plot = covid_plot, 
+  dpi = 300)
+```
+
+## Tables
+
+High quality tables can be produced using the functions from `gtsummary()` and cross referenced as for figures. Use the `tbl-` prefix in the chunk label to tell RStudio that the output is a table. Remember to add a caption using `tbl-cap:`.
+
+@tbl-covid-by-season shows a formatted table from `tbl_summary()`, @tbl-multi-regression shows a formatted regression table from `tbl_regression()`.
+
+```{r}
+#| echo: false
+#| label: tbl-covid-by-season
+#| tbl-cap: Distribution of Covid cases by season and year.
+
+covid %>% 
+  tbl_summary(include = c(newCasesBySpecimenDate, year, season),
+              by = season,
+              label = list(newCasesBySpecimenDate = "New Cases",
+                           year = "Year",
+                           season = "Season")
+              )
+```
+
+```{r}
+#| echo: false
+#| label: tbl-multi-regression
+#| tbl-cap: Association between new Covid cases, year and season.
+
+lm_multi <- lm(newCasesBySpecimenDate ~ year + season, data = covid)
+lm_multi %>% 
+  tbl_regression(label = list(year = "Year",
+                           season = "Season")) %>% 
+  add_glance_source_note()
+
+```
+
+## Inline quotation
+
+R commands can also be executed within blocks of text and the output displayed *inline*. For example, we can quote fit statistics for the regression model like this ($R^2$ = `r round(summary(lm_multi)$adj.r.squared, 2)`).
+
+## Exercise
+
+Open the file `quarto-example.qmd` and make the following changes.
+
+1.  Edit the YAML header to change the title and author of the document.
+
+2.  Add R code to the `setup` chunk to load the required libraries (`tidyverse`, `here` and `gtsummary`) and the Covid dataset.
+
+3.  Change the `setup` chunk options so the code and output are not included in the rendered document.
+
+4.  Add a couple of sentences to the `Introduction` section describing the Covid dataset. Include *inline quotations* describing the number of *columns* and *rows* in the dataset.
+
+5.  In the `Descriptive statistics` section, add a chunk which produces a figure showing the cumulative number of cases `cumCasesBySpecimenDate` over time.
+
+6.  Describe the pattern shown by the figure and cross reference it.
+
+7.  In the `Regression modelling` section, describe the symbolic structure of a multiple regression model with `cumCasesBySpecimenDate` as the response and `newFirstEpisodesBySpecimenDate` and `newReinfectionsBySpecimenDate` as the predictors. Use `code` markup to distinguish the model from plain text,
+
+8.  Fit the model and report the estimated coefficients (including the intercept) in a formatted table, along with a footnote of the fit summary statistics. Set the chunk options so that only the output is included in the rendered document.
+
+9.  Render the document and check the `.html` output file. Amend and re-render as necessary.

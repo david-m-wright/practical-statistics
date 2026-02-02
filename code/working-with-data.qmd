@@ -1,0 +1,251 @@
+---
+title: "Working with data"
+author: "David M Wright - d.wright@qub.ac.uk"
+format: html
+date: last-modified
+date-format: iso
+toc: true
+self-contained: true
+editor: visual
+---
+
+## Importing data
+
+When analysing a dataset, the most common storage structure is a *data frame*. This is a rectangular structure of rows and columns that looks like an Excel spreadsheet. In R, each *column* is a vector and so element must contain the same type of data (e.g. logical, numeric, character). Although data frames can be created by defining some vectors and then putting them together manually, most of the time data are read in from an external file. There are a wide variety of different file formats that can be read into R, here we are looking at importing a comma separated variable `.csv` file as this is one of the most common formats.
+
+We will be using two datasets. One is a freely available sample of anonymised 2011 Census returns, provided for teaching purposes by the Office for National Statistics. The second is a published set of Covid-19 case counts for the UK. Before moving on, download the following files from Canvas and put them in your `data` folder:
+
+1.  `2011 Census Microdata Teaching File.csv`
+
+2.  `Microdatateachinguserguide.pdf`
+
+3.  `Microdatateachingvariablels.pdf`
+
+4.  `data_2023-Jan-12.csv`
+
+## Preparatory work
+
+Before we import the data we must load a couple of *packages*. The base distribution of R contains many pre-defined functions but there are many more in additional packages that we can install and load when required (installing all packages would take up a lot of space and most would never be used).
+
+We are going to install two packages `tidyverse` and `here` using `install.packages()`, entered at the console. This only has to be done once on a computer, so calls to `install.packages()` are ususally *not* included in script files (if you ask for packages to be installed each time a script is run, it will be very slow).
+
+```{r packages-install}
+#| eval: false
+
+# Do not put this is an R script, execute it at the console instead.
+install.packages(c("tidyverse", "here")) 
+
+```
+
+We can load packages using `library()` which makes all of the functions inside available for use *during the current session only*. Calls to `library()` are usually done at the beginning of a script. When *re-opening a script in a new session*, ensure that these are executed or any calls to functions provided by the packages will not be found.
+
+```{r packages}
+# Load required packages
+library(tidyverse) 
+library(here)
+```
+
+`tidyverse` is a modern way of handling data in R. We want to import the `read_csv()` function from it. `here` is useful for finding the *path* to the file that we want to load. We can use it to construct the path that R must follow through the file system to find the file of interest. When used inside an R project, it is a much more robust way of finding files than entering paths manually. An example path to load the main census file might be:
+
+`"D:/OneDrive - Queen's University Belfast/Work/Teaching/SCM8173 Practical stats for med research/introduction-to-R/data/2011 Census Microdata Teaching File.csv"`
+
+Question: what might go wrong when entering paths in this?
+
+-   The path is long so it would be easy to make a mistake.
+
+-   If the project is moved to a different computer, the path is likely to change so the path will no longer find the desired file.
+
+The `here` package avoids these problems by generating the path that you need in a way that will work across all platforms. It takes a relatively short path from the root folder of the RStudio project that we are working in and generates the full file path automatically.
+
+```{r generate-path}
+here("data/2011 Census Microdata Teaching File.csv")
+```
+
+The path is then fed to the `read_csv()` function. Having inspected the data file in Excel, there are a couple of options that need to be specified. The first row of the file contains some T & C's which we do not want to import so we tell `read_csv()` to skip the first row. We also know that missing values are encoded as `-9` so we specify this also. When the data are imported, any elements that are `-9` will be converted to `NA`.
+
+```{r load-data}
+cens <- read_csv(here("data/2011 Census Microdata Teaching File.csv"), skip = 1, na = "-9")
+```
+
+## Inspecting data frames
+
+We can check the data have loaded by typing the name of the object `cens`.
+
+```{r check-data}
+cens
+```
+
+This tells us that the data have been loaded into a `tibble`. This is a type of data frame that is used in the `tidyverse` package and which has some handy features for sensibly displaying large data frames. It tells us the dimensions of the tibble (rows \* columns) and indicates the storage type of each variable at the top of the column (`<dbl>` = numeric, `<chr>` = character etc.).
+
+Some additional details of the data can be obtained using the following commands.
+
+```{r inspect}
+dim(cens)
+nrow(cens)
+ncol(cens)
+
+head(cens)
+tail(cens)
+
+names(cens)
+
+str(cens)
+summary(cens)
+glimpse(cens)
+```
+
+## Factors
+
+Variables containing categorical data (i.e. where a variable may take one of a set of discrete values) are handled with a special class of vector called a factor. Factors encode information about how to order the values in the variable and the ordering is used in both statistical analysis and graphical display. For example, we might wish to compare drinkers with non-drinkers for a health outcome with non-drinkers set as the first or baseline category.
+
+Internally, factors are stored as integer vectors by R and this must be noted when performing some conversions from factor to other variable types.
+
+To generate a factor from scratch:
+
+```{r factor-1}
+alcohol <- factor(c("None", "1-3 units", "None", "4-6 units", "4-6 units", ">6 units"))
+alcohol
+```
+
+The factor can take one of a set of pre-defined *levels*. Levels are sorted alphabetically by default using `factor`. The ordering of levels of a factor can be found using `levels()`.
+
+```{r factor-2}
+levels(alcohol)
+```
+
+If we want to re-order the levels, one way is to redefine the factor, specifying the ordering of the levels.
+
+```{r factor-3}
+alcohol <- factor(c("None", "1-3 units", "None", "4-6 units", "4-6 units", ">6 units"),
+                  levels = c("None", "1-3 units", "4-6 units", ">6 units"))
+alcohol
+```
+
+The `forcats` package (part of `tidyverse`) contains many useful functions for handling factors. Suppose that we wanted to change the name of one of the levels in the factor, the `fct_recode()` function can be used.
+
+```{r factor-4}
+alcohol <- fct_recode(alcohol, "0 units" = "None")
+alcohol
+```
+
+The levels of existing factors can be reordered using `fct_relevel()`.
+
+```{r factor-5}
+fct_relevel(alcohol, ">6 units", "4-6 units") 
+```
+
+To convert a factor to a character vector, use `as.character()`
+
+```{r factor-6}
+as.character(alcohol)
+```
+
+When the levels are numeric, conversion is more difficult because `as.numeric()` returns the index values of the factor, not the levels.
+
+```{r factor-7}
+year_fct <- factor(c(1990, 1983, 1977, 1998, 1990))
+as.numeric(year_fct)
+```
+
+```{r factor-8}
+# Converting twice
+as.character(as.numeric(year_fct))
+```
+
+```{r factor-9}
+# Using the levels function
+as.numeric(levels(year_fct))[year_fct]
+```
+
+The `fct_count()` function can be used to make a quick count of the number of observations associated with each factor level.
+
+```{r factor-10}
+# Make a new vector from the `Country of Birth` column
+# Note the use of backticks when the column name has spaces in it
+cob <- as_factor(cens$`Country of Birth`)
+
+# Label the levels according to the data dictionary
+cob <- fct_recode(cob, "UK" = "1", "Non UK" = "2")
+
+# Count the levels
+fct_count(cob)
+```
+
+Suppose we want to give the missing values a meaningful label. Use `fct_na_value_to_level()` to do this.
+
+```{r factor-11}
+cob <- fct_na_value_to_level(cob, level = "No Code required")
+fct_count(cob)
+```
+
+### Exercise
+
+1.  Generate a frequency table for the variable `Hours worked per week` using the labels as in the data dictionary (including "No Code required").
+2.  Regenerate the frequency table with "Part-time: 16 to 30 hours worked" as the last row.
+
+::: {.callout-caution collapse="true"}
+### Solution
+
+```{r factor-12}
+hours_week <- factor(cens$`Hours worked per week`)
+hours_week <- fct_recode(hours_week, "Part-time: 15 or less hours worked" = "1", 
+                         "Part-time: 16 to 30 hours worked" = "2",
+                         "Full-time: 31 to 48 hours worked" = "3",
+                         "Full-time: 49 or more hours worked" = "4")
+hours_week <- fct_na_value_to_level(hours_week, level = "No Code required")
+fct_count(hours_week)
+```
+
+```{r factor-13}
+hours_week_altered <- fct_relevel(hours_week, "Part-time: 16 to 30 hours worked", after = 4L)
+fct_count(hours_week_altered)
+```
+:::
+
+## Working with Dates
+
+Dates can be tricky even for experienced analysts to deal with as they come in many different formats and have various quirks including different month lengths and leap years.
+
+For this example we will use a published set of Covid-19 case counts for the UK.
+
+```{r dates-1}
+covid <- read_csv(here("data/data_2023-Jan-12.csv"))
+covid
+```
+
+Note that R has recognised the date column (class `<date>` in the tibble). This is probably because it is in the correct international standard for a date (YYYY-MM-DD). One way to simplify dates is to extract the component parts and make separate columns for year, month and day.
+
+```{r dates-2}
+covid$year <- year(covid$date)
+covid$month <- month(covid$date)
+covid$day <- day(covid$date)
+covid
+```
+
+For display purposes, sometimes it is necessary to turn the month or year columns into factors and then give them pretty labels.
+
+```{r dates-3}
+covid$month_lab <- factor(month.abb[covid$month], levels = month.abb)
+```
+
+Usually the process is not so simple and we have to tell R how to convert a character string to the correct date format (especially when there may be confusion over US or UK formats).
+
+This can be done using the `as_date()` function.
+
+```{r dates-4}
+# Some example dates in character format (US)
+char_dates <- c("1/15/2023", "7/9/2021", "3/3/1924")
+str(char_dates)
+```
+
+```{r dates-5}
+as_date(char_dates, format = "%m/%d/%Y")
+```
+
+When the incorrect format is specified the first date fails to parse because there is no 15th month.
+
+```{r dates-6}
+as_date(char_dates, format = "%d/%m/%Y")
+```
+
+If you know the format, `dmy()`, `mdy()` or `dmy()` can be used as shortcuts to read in dates correctly.

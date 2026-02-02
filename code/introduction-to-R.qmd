@@ -1,0 +1,283 @@
+---
+title: "Introduction to R"
+author: "David M Wright - d.wright@qub.ac.uk"
+format: html
+date: last-modified
+date-format: iso
+toc: true
+self-contained: true
+editor: visual
+---
+
+## Setting up a project
+
+Working with R will involve keeping track of multiple code and data files. The easiest way to do this is using RStudio to create a project, a collection of files associated with a single research project or task. For these practicals we are going to create a project called `introduction-to-R`.
+
+Create a new project in RStudio using `File` \> `New Project` and following the dialogue prompts `New directory` \> `New Project`. Set `Directory name` to `introduction-to-R` and set this as a subdirectory of a folder that you will be able to access later (e.g. Q: drive on campus rather than C: drive). `Create Project` and wait while the files are prepared. A new directory will be created containing a single file `introduction-to-R.rproj`. This is the project definition file and should be left alone. The location of this file is also where R will start to look for other files.
+
+Within this directory, create two other folders: `data` and `code`. This can be done using the `Files` pane in RStudio or using File Explorer (Windows) or Finder (Mac).
+
+## Creating objects
+
+R can be used like a calculator by typing mathematical expressions at the console, followed by `Enter`.
+
+```{r calc-1}
+2+2
+```
+
+```{r calc-2}
+12*12
+```
+
+We usually want to store the output of our calculations so that it can used further. This is done by creating objects. First type a name for the new object and then use the assignment operator `<-` followed by the value we want the object to have.
+
+```{r assign-1}
+height <- 1.8
+```
+
+In English, we can read `height <- 1.8` as "1.8 is assigned to height" or "1.8 goes into height".
+
+Performing the assignment does not produce any output at the console. However, the object is now present in the *environment* which is where all the objects available for use are stored in memory. Check the environment pane in R studio to see that `height` is now listed. To see the value of the object, type its name.
+
+```{r assign-2}
+height
+```
+
+The keyboard shortcuts for the assignment operator `<-` are `Alt` + `-` on a PC and `Option` + `-` on a Mac. In some R scripts you may see `=` used in place of `<-`. This also works but `<-` is preferred as `=` is used for other purposes as we shall see later.
+
+Choosing a good name for each new object is often tricky. Names should be:
+
+-   informative, giving some indication of what the object is, and short to make code easier to type and read.\
+-   lower case (R is case sensitive).\
+-   dots `.` should be avoided - use underscores `_` instead (e.g. `height_baseline` rather than `height.baseline`).\
+-   names of existing R functions should be avoided - a search in the `Help` tab of the `Files` pane can tell you if your proposed name already belongs to something else.
+-   be nouns for object names and verbs for function names
+
+The `tidyverse` style guide gives useful information on choosing names and producing readable code in general.
+
+Once an object is in the environment it can be used for further calculations. For example, the `height` object can be used to calculate a body mass index (BMI). The `^2` operator squares the value immediately before it.
+
+```{r assign-3}
+78/height^2 
+```
+
+The value of this calculation could be assigned to another object.
+
+```{r assign-4}
+bmi <- 78/height^2
+bmi
+```
+
+A new value can be assigned an existing object and will overwrite the existing value.
+
+```{r assign-5}
+height <- 1.6
+height
+```
+
+However, assigning a new value to one object will not change the values of other objects.
+
+### Exercise
+
+What is the current value of bmi: `24.07407` or `30.46875`?
+
+::: {.callout-caution collapse="true"}
+### Solution
+
+It is `24.07407` because `bmi <- 78/height^2` has not been rerun since changing the value of `height`.
+:::
+
+## Writing a script
+
+To this point we have been using just a couple of commands for each of the operations and have been able to enter them into the console without too much effort. However, this becomes tiresome as the amount of code increases...if a mistake was made at line 20 we would have to type the preceding 19 lines in again. We often want to reuse the same sequence of commands for a different purpose. Therefore, it is better to store commands into a "script", a short programme that can be saved and rerun later with minimal effort.
+
+Create a new script in RStudio using `File` \> `New File` \> `R script` or by using the button in the top left corner. This opens a blank script pane above the console into which commands are entered. To execute commands they must either be cut and pasted into the console (slow - don't do it) or using the shortcut `Ctrl` + `Enter`. This will execute the line the cursor is on, or if multiple lines are highlighted, the entire block.
+
+Save the new script with the name `introduction-to-R.R` in the `code` folder of your project.
+
+## Comments
+
+It is common practice in programming to leave comments in your code. These are short notes to explain what the code is doing or to draw attention to an unusual feature. Putting sufficient comments in code makes a huge difference when re-visiting a piece of work, reducing the amount of time taken to "read back in" to the project.
+
+Comments in R are indicated by the `#` symbol. R will ignore any characters from the `#` to the end of the line. Comments can start at any point in a line.
+
+```{r comments-1}
+# Enter height
+height <- 1.8
+bmi <- 78/height^2 # Calculate BMI
+bmi # Display BMI 
+```
+
+A helpful trick when testing new code is to "comment out" lines (i.e. tell R to ignore those lines) that may be causing an error and see if the programme runs without them. In the Rstudio script pane, highlight the lines to be commented out and use `Ctrl` + `Shift` + `C`. To uncomment lines, use the same shortcut.
+
+## Functions
+
+R comes with a wide range of functions. These are sets of R commands that have been packaged up to perform a certain task (e.g. calculate the mean of a set of numbers, load a data file). Functions usually receive inputs called *arguments* and usually return a *value* as the output. *Calling* a function means to execute it.
+
+```{r functions-1, error=TRUE}
+y <- mean(x)
+```
+
+This is a typical function call. The name of the function is `mean` and we can tell it is a function because it is followed by a pair of round brackets `()`. Arguments to the function are listed in the brackets, in this case the object `x`. Reading this call in English we would say that the mean of the object `x` goes into the object `y`.
+
+```{r functions-2}
+round(7.152)
+```
+
+In this example we use `round()` to return the single argument `7.152` rounded to the nearest integer. If we want to return a more precise value, we can use an additional argument to specify the number of digits required.
+
+```{r functions-3}
+round(7.152, digits = 1)
+```
+
+Function arguments are separated with `,` and the `=` operator (not `<-`) is used to specify the value of the argument. The order of arguments to each function are pre-defined. To find out the order of arguments, look up the help file for the function. This displays in the `Help` pane in RStudio and also gives details of what the function does, the value it outputs and some examples at the end.
+
+```{r function-4}
+?round
+```
+
+For some arguments, there is a default value that will be used if the argument is not specified in the function call by the user. These arguments are called *options*. For `round()`, `digits` is an option with `digits = 0` producing an integer by default.
+
+In this case, `round()` takes two arguments, `x` and `digits`. If arguments are supplied in that order, they do not need to be explicitly named. If the order is different, they should be named.
+
+```{r function-5}
+round(7.152, 1)
+round(digits = 1, x = 7.152)
+```
+
+## Vectors
+
+Data is organised into structures in R, with vectors being the most common. Vectors are sets of values that are collected together so that they can be worked on together. A vectors can be created using the `c()` function.
+
+Here we assign a vector of 4 measurements of diastolic blood pressure to an object `dbp`.
+
+```{r vectors-1}
+dbp <- c(70, 72, 81, 71)
+dbp
+```
+
+Vectors can contain other types of data including character strings. Quotation marks are used to indicate a character string. Without the quotes, R would be looking in the environment for objects named `never`, `current` and `past`. If these have not been defined there would be an error message.
+
+```{r vectors-2}
+smoker <- c("never", "current", "past", "past")
+smoker
+```
+
+Or logical values (binary indicators taking either the value `TRUE` or `FALSE` (`1` or `0`)).
+
+```{r vectors-3}
+diabetes <- c(TRUE, TRUE, FALSE)
+diabetes
+```
+
+Or integer vectors (the suffix `L` indicates to R that the number is an integer and it will be treated accordingly).
+
+```{r vectors-4}
+visits <- c(5L, 1L, 2L)
+visits
+```
+
+Once a vector has been assigned to an object, other functions are used to display features of it. `length()` gives the length.
+
+```{r vectors-5}
+length(dbp)
+```
+
+```{r vectors-6}
+length(smoker)
+```
+
+`str()` summarises the structure of the object. The code at the start indicates the data type of the vector, `num` for numeric and the square brackets indicate the dimension of the vector. Here it indicates that `dbp` is a numeric vector with 4 elements.
+
+```{r vectors-7}
+str(dbp)
+```
+
+And that `smoker` is a character vector of length 4.
+
+```{r vectors-8}
+str(smoker)
+```
+
+Elements can be added to a vector using `c()`.
+
+```{r vectors-9}
+smoker <- c(smoker, "never")
+length(smoker)
+```
+
+`typeof()` can also be used to check that the data type is what you expect it to be
+
+```{r vectors-10}
+typeof(visits)
+```
+
+### Exercise
+
+Generate a vector containing two of the data types (`logical`, `integer`, `numeric`, `character`) and assign to an object. Check the type of the object to determine what happens. Why does it happen?
+
+::: {.callout-caution collapse="true"}
+### Solution
+
+Each vector can only contain a single type of data. R will convert or *coerce* elements from one type to another to ensure consistency.
+
+```{r vectors-11}
+vec <- c(TRUE, TRUE, "FALSE", "Seven")
+typeof(vec)
+```
+:::
+
+## Missing data
+
+Dealing with missing data correctly is very important. In R, missing values are represented by `NA`. If there are missing values in a vector, most functions will return `NA`. This forces the analyst to decide what to do with missing values.
+
+```{r missing-1}
+sbp <- c(120, NA, 110, 140)
+mean(sbp)
+```
+
+Specifying the option `na.rm=TRUE` will remove the missing values before calculating the mean.
+
+```{r missing-2}
+mean(sbp, na.rm = TRUE)
+```
+
+```{r missing-3}
+min(sbp, na.rm = TRUE)
+```
+
+To test which elements of a vector are missing, use `is.na()`. Combined with a subset `[]`, only the non-missing elements of a vector can be returned.
+
+```{r missing-4}
+sbp[!is.na(sbp)]
+```
+
+The logical vector from `is.na()` can be summed to count the number of missing values (in a logical vector, `TRUE` = 1 and `FALSE` = 0).
+
+There are other ways to extract only the non-missing elements of a vector.
+
+```{r missing-5}
+na.omit(sbp)
+sbp[complete.cases(sbp)]
+```
+
+### Exercise
+
+Enter the following vector: `sbp <- c(110, NA, 120, 140, NA, 120, 110, 130, 130)`.
+
+1.  Create a new vector with the missing values removed.
+
+2.  Calculate the median of `sbp`
+
+3.  Use R to calculate the number of people with `sbp` \> 125.
+
+::: {.callout-caution collapse="true"}
+### Solution
+
+```{r missing-6}
+sbp <- c(110, NA, 120, 140, NA, 120, 110, 130, 130) 
+sbp <- na.omit(sbp)
+median(sbp)
+sum(sbp > 125)
+```
+:::
