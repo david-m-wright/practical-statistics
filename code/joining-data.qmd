@@ -106,7 +106,6 @@ cases_wide %>%
 2.  Then produce a scatter plot of cases counts for 2020 vs 2021, labelling the points with the name of the month (hint: look up the ggplot geom help pages).
 
 ::: {.callout-caution collapse="true"}
-
 ### Solution
 
 ```{r pivot5}
@@ -210,7 +209,6 @@ ireland_france_uk %>%
 2.  Count the number of days when a new case was recorded in Samoa but not in Anguilla, classified by the year and month in which they were recorded and arranged from latest to earliest.
 
 ::: {.callout-caution collapse="true"}
-
 ### Solution
 
 ```{r join-exercise}
