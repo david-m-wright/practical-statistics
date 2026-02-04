@@ -11,15 +11,15 @@ editor: visual
 
 ## Setup
 
-We will be using a set of Covid-19 case counts from the UK.
+1.  We will be using a set of Covid-19 case counts from the UK.
 
-Before moving on, download the following files from Canvas and put them in your `data` folder:
+    Before moving on, download the following files from Canvas and put them in your `data` folder:
 
-1.  `data_2023-Jan-12.csv`
+    `data_2023-Jan-12.csv`
 
-Then load the required packages and datasets. The package `gt_summary` will be used to format high quality tables. Install it if necessary (`install.packages("gt_summary")`).
+2.  Then load the required packages and datasets. The package `gt_summary` will be used to format high quality tables. Install it if necessary (`install.packages("gt_summary")`).
 
-An additional categorical variable will be added to the `covid` data frame, a factor indicating whether the row corresponds to a date in winter or not.
+    An additional categorical variable will be added to the `covid` data frame, a factor indicating whether the row corresponds to a date in winter or not.
 
 ```{r load-data}
 library(tidyverse)
@@ -45,7 +45,6 @@ covid
 
 The first stage of analysis is to explore the data and present descriptive statistics. We start by tabulating three of the variables using the `tbl_summary()` function.
 
-
 ```{r oneway1}
 covid %>% 
   tbl_summary(include = c(newCasesBySpecimenDate, year, season)) 
@@ -61,7 +60,7 @@ covid %>%
                            season = "Season")) 
 ```
 
-By default, median and inter-quartile range are displayed for continuous variables and counts and column percentages for categorical variables. Changing the summary statistics can be done using the `statistic` argument. This uses a `list`, a data structure that can contain different types of data in each element, including other data structures. For example, a list can be populated with a data frame as each element. Here, the list contains a set of `formulas`, symbolic representations of how the different types of variables are to be displayed. Formulas in R always contain a ~ (tilde) and are also used in regression modelling. 
+By default, median and inter-quartile range are displayed for continuous variables and counts and column percentages for categorical variables. Changing the summary statistics can be done using the `statistic` argument. This uses a `list`, a data structure that can contain different types of data in each element, including other data structures. For example, a list can be populated with a data frame as each element. Here, the list contains a set of `formulas`, symbolic representations of how the different types of variables are to be displayed. Formulas in R always contain a \~ (tilde) and are also used in regression modelling.
 
 The formula `all_continuous() ~ "{mean} ({sd})"` indicates that continuous variables will be summarised by mean and standard deviation. Categorical variables will be summarised displaying both the cell count `n` and the total cell count `N`, along with the percentage.
 
@@ -77,7 +76,6 @@ covid %>%
               )) 
 ```
 
-
 `gt_summary` usually guesses the type of statistic to produce quite well but this can be overridden for particular variables by specifying them directly in the `statistic` list.
 
 ```{r oneway4}
@@ -92,6 +90,7 @@ covid %>%
                 year ~ "{n}"
               )) 
 ```
+
 The approach can be extended to cross tabulating two categorical variables using the `tbl_cross()` function. Here we tabulate `year` by `season`.
 
 ```{r cross1}
@@ -105,7 +104,7 @@ covid %>%
 
 In public health and epidemiology a common task is to compare two groups (for example a diseased and a non-diseased group, i.e. a binary outcome variable) across a set of other characteristics (e.g. age, sex, socio-economic status). Look at *Table 1* in almost any epidemiology publication for an example.
 
-In the Covid dataset we can tabulate both numeric variables (e.g. `NewCasesbySpecimenDate`) and categorical variables (e.g. `year`) by the categorical variable `season`. 
+In the Covid dataset we can tabulate both numeric variables (e.g. `NewCasesbySpecimenDate`) and categorical variables (e.g. `year`) by the categorical variable `season`.
 
 ```{r twoway1}
 covid %>% 
@@ -137,9 +136,9 @@ covid %>%
 
 ### Including inferential statistics
 
-`gtsummary` includes the option to add p-values to tables of descriptive statistics using the function `add_p()`. Statistical tests are conducted in the background and the results added to the output table. 
+`gtsummary` includes the option to add p-values to tables of descriptive statistics using the function `add_p()`. Statistical tests are conducted in the background and the results added to the output table.
 
-**This function should only be used with caution.** 
+**This function should only be used with caution.**
 
 It is important to check that the test chosen by the package (e.g. t-test, chi-squared test) is appropriate for each variable selected. The test will be listed as a footnote to the table. If it not appropriate, select a different one using the `test` argument. For example, when comparing means of continous variables across two groups the default test is the Wilcoxon rank sum test. Depending on the distribution of the data we might wish to specify a t-test should be used instead as in this example.
 
@@ -153,15 +152,11 @@ covid %>%
   add_p(test = all_continuous() ~ "t.test")
 ```
 
-
 ### Exercise
 
-Tabulate descriptive statistics for the cumulative number of cases, the month label (e.g. Jan, Feb, ...) and the season by year.
-For continuous variables display, the mean, standard deviation and range. 
-Include a suitable caption and format to publication quality.
+Tabulate descriptive statistics for the cumulative number of cases, the month label (e.g. Jan, Feb, ...) and the season by year. For continuous variables display, the mean, standard deviation and range. Include a suitable caption and format to publication quality.
 
 ::: {.callout-caution collapse="true"}
-
 ### Solution
 
 ```{r twoway-solution}
@@ -175,7 +170,6 @@ covid %>%
               by = year) %>% 
   modify_caption("**Covid case counts by year**") 
 ```
-
 :::
 
 ## Displaying regression models
@@ -198,6 +192,7 @@ Here we fit a model with `newCasesBySpecimenDate` as the response and `year` as 
 lm_uni <- lm(newCasesBySpecimenDate ~ year, data = covid)
 summary(lm_uni)
 ```
+
 The plain text console output from `summary()` is good for quickly checking the model but is not suitable for including in publications so use `tbl_regression()` to produce a formatted output. By default, the intercept is omitted but here we include it for comparison with the plain text output.
 
 ```{r lm2}
@@ -215,7 +210,7 @@ tbl_regression(lm_uni) %>%
   add_glance_source_note()
 ```
 
-In the previous model, `year` was treated as a continuous variable. It could also be treated as categorical by turning it into a factor. This can be done using `mutate()` before the model is fitted. If it makes more sense to treat it as categorical throughout the entire analysis, perfom the mutate immediately after the data are loaded. 
+In the previous model, `year` was treated as a continuous variable. It could also be treated as categorical by turning it into a factor. This can be done using `mutate()` before the model is fitted. If it makes more sense to treat it as categorical throughout the entire analysis, perfom the mutate immediately after the data are loaded.
 
 Regression models can be built into a pipeline but because the first argument to `lm()` is `model`, rather than `data`, the `data` argument has to be explicitly specified with a `.` representing the data travelling through the pipe. In this model the first level of the factor (2020) is considered the reference category.
 
@@ -226,7 +221,7 @@ covid %>%
   tbl_regression()
 ```
 
-If there are many predictor variables, each may be fitted singly in a univariate model before some are selected for inclusion in multiple regression. `tbl_uvregression()` automates the univariate fitting process. 
+If there are many predictor variables, each may be fitted singly in a univariate model before some are selected for inclusion in multiple regression. `tbl_uvregression()` automates the univariate fitting process.
 
 ```{r lm5}
 covid %>% 
@@ -235,7 +230,6 @@ covid %>%
                    method = "lm")
 
 ```
-
 
 ### Multiple regression
 
@@ -247,7 +241,7 @@ summary(lm_multi)
 
 ```
 
-Here the `year` and `season` variable names are replaced using the `label` argument for presentation. 
+Here the `year` and `season` variable names are replaced using the `label` argument for presentation.
 
 ```{r mul2}
 lm_multi %>% 
@@ -268,12 +262,9 @@ glm_uni %>%
 
 ### Exercise
 
-Fit a linear regression model with `newReinfectionsBySpecimenDate` as the response with year and labelled month as the predictors.
-Display the model coefficients including the intercept and include a footnote containing model fit statistics.
-Format to publication standard.
+Fit a linear regression model with `newReinfectionsBySpecimenDate` as the response with year and labelled month as the predictors. Display the model coefficients including the intercept and include a footnote containing model fit statistics. Format to publication standard.
 
 ::: {.callout-caution collapse="true"}
-
 ### Solution
 
 ```{r reg-solution}
@@ -287,7 +278,4 @@ lm_reinf %>%
   modify_caption("**Multiple regression of new Covid-19 reinfections.**")
 
 ```
-
 :::
-
-

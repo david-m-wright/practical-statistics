@@ -140,7 +140,6 @@ covid <- read_csv(here("data/data_2023-Jan-12.csv")) %>%
 covid
 ```
 
-
 We first use `group_by()` to group the rows and then use `summarise()` to compute the total cases per year. This will return a data frame of just three rows, one for each year.
 
 ```{r group-2}

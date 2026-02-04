@@ -1,0 +1,84 @@
+---
+title: "Introduction to version control"
+author: "David M Wright - d.wright@qub.ac.uk"
+format: html
+self-contained: true
+date: last-modified
+date-format: iso
+toc: true
+editor: visual
+---
+
+## Introduction
+
+In any data analysis project it can difficult to keep track of where particular figures and tables came from (i.e. what data and code was used to produce them), especially if the code becomes long and complicated. This is an important task for a data analyst; tracing the source of key results and verifying that they remain correct when multiple alterations have been made to code and/or data allows robust conclusions to be drawn and defended. Failure to do this has contributed towards a *reproducibilty crisis* in science, where novel findings cannot be reproduced by other groups and so contribute little to scientific knowledge.
+
+It is tempting to create a series of R scripts with names like:
+
+`analysis_complete.R`\>
+
+`analysis_complete2.R` \>
+
+`analysis_complete2_revised.R` \>
+
+`analysis_complete2_revised_FINAL.R` \>
+
+`analysis_complete2_revised_FINAL_updated.R` \>
+
+... \>
+
+`analysis_complete2_revised_FINAL_updated4_section1_revised_FINAL_FINAL.R` !!!
+
+This approach makes it really difficult to work out which outputs came from which script.
+
+Thankfully there are tools commonly used in software engineering that can be applied to statistics and data science to solve the problem.
+
+These are based on the concept of *version control*, in which changes to files are tracked and recorded in a central repository such that the entire history of each file can be easily browsed to show where changes were made, and if necessary corrected. In combination with literate programming using Quarto, version control is a powerful way to ensure that your work is reproducible.
+
+## Git
+
+Git is a version control tool that integrates with RStudio and tracks changes to files, keeping and overall log of the project history at key time points.
+
+It should be used less frequently than saving documents, usually when a piece of analysis is complete or will be presented to others. When one of these points is reached, the code is `committed` to the repository. Changes to code at the time of each `commit` can be viewed by displaying a `diff` (difference).
+
+Git is designed to track plain text files like R scripts and unrendered Quarto documents (`.qmd` files).
+
+Some files should generally not be tracked including:
+
+-   Output files
+
+-   Images
+
+-   Data files
+
+Git can be set to `ignore` these files.
+
+In this class you will learn how to use Git to version control your own projects on a single machine. Once this has been mastered it is possible to share your code and collaborate with others through the website `GitHub`, an online repository of projects in many different programming languages.
+
+## Exercise
+
+1.  Save the file `linear-models.R` if not done already.
+
+2.  Switch on version control for your project using `Tools` \> `Project options` \> `Git/SVN` \> set `Version control system` to `Git`
+
+3.  In the `Git` tab (top right of the screen, by the `Environment` pane) check the `Staged` box for the file `linear-models.R`
+
+4.  Click `Diff` on the menu bar of the `Git` tab.
+
+5.  Write a short message in the `Commit message` box and click `Commit.`
+
+6.  Open `linear-models.R` and replace:
+
+7.  `mutate(season = factor(if_else(month_lab %in% c("Dec", "Jan", "Feb"), "Winter", "Non-winter")))`
+
+8.  with
+
+9.  `mutate(season = factor(if_else(month_lab %in% c("Nov", "Dec", "Jan", "Feb"), "Winter", "Non-winter")))`
+
+10. Save the changes.
+
+11. Inspect the `Diff` and `Commit` the changes.
+
+12. Inspect the Git `History`
+
+13. Set git to ignore the `data` folder.

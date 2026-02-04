@@ -58,9 +58,9 @@ R contains two complete graphics engines, one contained in the base distribution
 
 The most basic components of chart are:
 
-* Data  
-* Aesthetic mappings (aes) that describe how variables are mapped onto graphical attributes including the axes, colour, fill and shape.   
-* Geometric objects (geoms) specifying the type of chart to be produced (e.g. bar plot `geom_bar()`, line plot `geom_line()`).   
+-   Data\
+-   Aesthetic mappings (aes) that describe how variables are mapped onto graphical attributes including the axes, colour, fill and shape.\
+-   Geometric objects (geoms) specifying the type of chart to be produced (e.g. bar plot `geom_bar()`, line plot `geom_line()`).
 
 To plot new Covid cases by date we could use:
 
@@ -70,7 +70,7 @@ covid %>%
   geom_line()
 ```
 
-The data `covid` always comes first and then it is piped `%>%` into `ggplot()`, as the first argument of `ggplot()` is always the data to be plotted. Next comes the aesthetic mapping `aes()` which is used to define which variables will be plotted on the x and y axes. Finally, as this is to be a line chart, `geom_line()` is used to produce the chart. Once a ggplot has been defined, all subsequent _layers_ (geoms) are added using a trailing `+` at the end of a row, not the pipe operator.
+The data `covid` always comes first and then it is piped `%>%` into `ggplot()`, as the first argument of `ggplot()` is always the data to be plotted. Next comes the aesthetic mapping `aes()` which is used to define which variables will be plotted on the x and y axes. Finally, as this is to be a line chart, `geom_line()` is used to produce the chart. Once a ggplot has been defined, all subsequent *layers* (geoms) are added using a trailing `+` at the end of a row, not the pipe operator.
 
 ggplots can be assigned to objects and then plotted later. Sometimes it is useful to assign the base plot to an object and then experiment with different geoms using the new object.
 
@@ -148,6 +148,7 @@ cases_month %>%
   ggplot(aes(x = month_lab, y = total_cases)) +
   geom_col()
 ```
+
 Colours of the bars can be split by year.
 
 ```{r barplot-2}
@@ -195,11 +196,10 @@ Axis labels and legend titles are taken from the variable names of the input dat
 
 The `labs()` function can specify:
 
-* `title`.  
-* `subtitle`.  
-* `caption`   
-* `...` names for values and aesthetics used in the plot.   
-
+-   `title`.\
+-   `subtitle`.\
+-   `caption`\
+-   `...` names for values and aesthetics used in the plot.
 
 ```{r facet-4}
 cases_facet +
@@ -213,7 +213,6 @@ cases_facet +
 # Themes
 
 A final touch for a chart may be applying a theme to deal with purely aesthetic aspects like the size and position of axis text. There are a number of different themes included with ggplot (try `theme_bw()`, `theme_light()`, `theme_dark()`) or you can specify your own.
-
 
 ```{r theme-1}
 cases_facet +
@@ -257,7 +256,6 @@ cases_facet +
 Generate a scatter plot of the number of first episodes aginst the cumulative number of reinfections. Have separate facets for each year and format the chart to publication standard.
 
 ::: {.callout-caution collapse="true"}
-
 ### Solution
 
 ```{r exer-1}
@@ -274,7 +272,4 @@ covid %>%
   theme(axis.text.x = element_text(angle = 45, hjust = 1),
         axis.text = element_text(size = 14)) 
 ```
-
 :::
-
-

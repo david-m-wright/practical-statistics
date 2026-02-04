@@ -20,14 +20,9 @@ editor: visual
 
 ```
 
-
 ## Introduction
 
-
-
 ## Descriptive statistics
-
-
 
 ## Regression modelling
 
@@ -38,6 +33,3 @@ editor: visual
 # Fit regression model here
 
 ```
-
-
-

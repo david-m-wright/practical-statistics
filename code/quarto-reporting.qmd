@@ -11,13 +11,15 @@ editor: visual
 
 ## Setup
 
-Before continuing, download the following files from Canvas and put them in your `code` folder:
+1.  **Create a new folder** named `output` inside the top level of your project folder (i.e. next to `code` and `data` but **not** inside either of them).
 
-1.  `quarto-example.qmd`
+2.  Before continuing, download the following files from Canvas and put them in your `code` folder:
 
-Download the following files from Canvas and put in your `data` folder:
+    `quarto-example.qmd`
 
-1.  `data_2023-Jan-12.csv`
+3.  Download the following files from Canvas and put in your `data` folder:
+
+    `data_2023-Jan-12.csv`
 
 ## Introduction to Quarto
 
@@ -152,7 +154,7 @@ covid_plot
 The figure rendering from a Quarto document is good enough for most purposes. For submission to a scientific journal, a high resolution file might be required. Use `ggsave()` to produce this with `dpi` set to at least 300. Size for the plot can be specified here also.
 
 ```{r}
-ggsave(filename = here("high-res-covid-plot.tiff"),
+ggsave(filename = here("output/1high-res-covid-plot.tiff"),
   width = 5,
   height = 5,
   plot = covid_plot, 
