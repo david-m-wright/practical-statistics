@@ -1,0 +1,151 @@
+---
+title: "Analysis of clustered data"
+subtitle: "Practical solutions"
+author: "Chris Cardwell - c.cardwell@qub.ac.uk"
+format: html
+self-contained: true
+date: last-modified
+date-format: iso
+toc: true
+editor: visual
+---
+
+```{r}
+#| label: setup
+#| include: false
+# Load the required packages
+library(tidyverse)
+library(here)
+library(gtsummary)
+library(fixest)
+library(lmerTest)
+library(broom.mixed)
+library(lmtest)
+library(sandwich)
+library(gt)
+```
+
+## Practical analysis of clustered data
+
+Download the London Educational Authorities dataset available in Canvas (`lea for notes.csv`) and put it in your `data` folder. Answer the following questions by to investigate whether there is evidence of a difference in mean exam score in fee and non fee paying schools. Fill in empty code chunks or add narrative descriptions where required.
+
+```{r}
+#| label: load-lea
+
+# London Educational Authorities dataset
+# Load LEA data and code factors according to data dictionary
+leadata <- read_csv(here("data/lea for notes.csv")) %>% 
+  mutate(schgend = factor(schgend,
+                           labels = c("Mixed school",
+                                      "Boys only",
+                                      "Girls only")),
+         schfee = factor(schfee,
+                         labels = c("Non-fee", "Fee"))) 
+
+```
+
+
+1.  Use an independent samples t-test to compare the mean exam score in fee paying and non fee paying schools ignoring the clustering. Use the command: `t.test(outcome_variable~exposure_variable, data=dataset,var.equal=TRUE)`
+
+```{r}
+#| label: q1
+
+t.test(exam ~ schfee, data=leadata ,var.equal=TRUE)
+```
+The mean exam score in fee paying schools was 61.4% and in non fee paying schools was 59.8%.  Ignoring the clustering, there was evidence of a difference (P=0.031).
+
+2.  Recreate the analysis in (1.) using a linear regression ignoring the clustering. Use the command: `lm(outcome_variable ~ factor(exposure _variable), data= dataset)`
+
+```{r}
+#| label: q2
+
+lm(exam ~ schfee, data=leadata) %>% 
+  tbl_regression()
+
+```
+Note that the mean difference (1.6) of and p-value (0.031) are identical in the regression analysis.
+
+3.   What is the main weakness of your analysis in (1) and (2)?
+
+Both analyses ignore clustering and therefore will overestimate power.
+
+4.  Use a two stage analysis method to compare the mean exam score in fee paying and non fee paying schools. Use the command to collapse the data to school level:
+
+    `dataset_collapsed <- dataset %>% group_by(exposure_variable, cluster_variable) %>% summarise(outcome_variable = mean(outcome_variable, na.rm = TRUE), .groups = "drop")`
+    
+```{r}
+#| label: q4
+
+leadata_collapsed <-leadata %>%
+  group_by(schfee, school) %>%
+  summarise(exam = mean(exam),
+            .groups = "drop") 
+
+  lm(exam ~ schfee, data=leadata_collapsed) %>% 
+    tbl_regression(intercept = TRUE)
+
+```
+Collapsing the data to the school level to account for the clustering we have now 65 data points, the mean difference is 1.4 (95% CI -4.3, 7.1) and there is now less evidence of a difference (P=0.62).
+
+5.  Use a linear regression model with cluster robust standard errors to compare the mean exam score in fee paying and non-fee paying schools. Use the command: f`eols(outcome_variable ~ exposure_variable +factor(exposure_variable),data= dataset, cluster=~ cluster_variable)`
+
+```{r}
+#| label: q5
+
+# Fit the model accounting for clustering
+clustermod <-feols(exam~schfee,data=leadata, cluster=~school)
+
+# Format the model output
+tbl_regression(clustermod,
+               intercept = TRUE,
+               estimate_fun = label_style_sigfig(digits = 3),
+               pvalue_fun = label_style_pvalue(digits = 2)) 
+
+```
+Using the cluster-robust standard errors on the original regression, the mean difference in fee paying and non fee paying schools remains 1.6% but adjusting the standard error for the 65 clusters this is no longer significant (P=0.53). 
+
+6.  Repeat the analysis in (5) additionally adjusting for the London reading test score.
+
+```{r}
+#| label: q6
+
+# Fit the model accounting for clustering
+clustermod_adj <-feols(exam~ standlrt + schfee, data=leadata, cluster=~school)
+
+# Format the model output
+tbl_regression(clustermod_adj,
+               intercept = TRUE,
+               estimate_fun = label_style_sigfig(digits = 2),
+               pvalue_fun = label_style_pvalue(digits = 2)) 
+
+
+```
+Using the cluster-robust standard errors and adjusting for London Reading Test score, the mean difference in fee paying and non fee paying schools is attenuated to 0.6% (P=0.79).
+
+7.  Use a multilevel model with a random intercept at school level to compare the mean exam score in fee paying and non-fee paying schools. Use the command: `lmer(outcome_variable ~1+factor(exposure_variable)+(1| cluster_variable),data=dataset)`
+
+```{r}
+#| label: q7
+multilevelmodel_fee <-lmer(exam~1+schfee+(1|school),data=leadata)
+tbl_regression(multilevelmodel_fee,
+               intercept = TRUE,
+               pvalue_fun = label_style_pvalue(digits = 2))
+
+```
+Using the multilevel model with a random intercept, the mean difference in fee paying and non fee paying schools is 1.3% (P=0.63).
+
+8.  Repeat the analysis in (7) additionally adjusting for the London reading test score.
+
+```{r}
+#| label: q8
+multilevelmodel_fee_adj <-lmer(exam~1+ standlrt + schfee+(1|school),data=leadata)
+tbl_regression(multilevelmodel_fee_adj,
+               intercept = TRUE,
+               pvalue_fun = label_style_pvalue(digits = 2))
+
+```
+Using the multilevel model with a random intercept and adjusting for London Reading Test, the mean difference in fee paying and non fee paying schools is further attenuated 0.1% (P=0.96).
+
+9.  Based upon these analysis what is your conclusion: Is there evidence of a difference in mean exam score in fee and non fee paying schools?
+
+All analyses that account for the clustered data (including the two stage analysis, analysis using cluster robust standard errors and multilevel modelling analysis) do not show evidence of a difference in mean exam score between fee paying and non fee paying schools.  

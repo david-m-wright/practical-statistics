@@ -1,0 +1,421 @@
+---
+title: "Analysis of clustered data"
+author: "Chris Cardwell - c.cardwell@qub.ac.uk"
+format: html
+self-contained: true
+number-sections: true
+date: last-modified
+date-format: iso
+toc: true
+editor: visual
+---
+
+```{r}
+#| label: setup
+#| message: false
+#| warning: false
+# Load the required packages
+library(tidyverse)
+library(here)
+library(gtsummary)
+library(fixest)
+library(lmerTest)
+library(broom.mixed)
+library(lmtest)
+library(sandwich)
+library(gt)
+```
+
+## Learning outcomes
+
+At the end of this session, students should be able to:
+
+a.  identify clustered data;
+
+b.  use a two stage method to account for clustered data;
+
+c.  use robust standard error approach to account for clustered data;
+
+d.  use basic random intercept model to account for clustered data.
+
+## Introduction
+
+Clustered data arise in medical research when observations can be classified into a number of different groups, referred to as clusters. The data are sometimes referred to as nested or hierarchical because observations can be grouped within each cluster. Observations within a cluster are likely to be more similar than observations from different clusters and hence cannot be considered independent which is a key assumption of many statistical techniques we have covered so far. Examples of clustered data in medical research include:
+
+a.  studies which take more than one observation from an individual;
+
+b.  studies which include individuals from the same household or attending the same clinic; and
+
+c.  cluster randomized trials in which clusters are randomized to an intervention or control.
+
+In this chapter we will look at some simple methods that account for clustering and will introduce more complicated methods to deal with clustered data.
+
+## Ignoring clustering
+
+Clustered data are often analysed using methods which ignore clustering. However, this approach can lead to erroneous conclusions because:
+
+1.  Methods ignoring clustering handle observations within a cluster as independent. As observations within a cluster are more similar to each other that observations from different clusters treating them as independent leads to an artificial increase in statistical power. Hence, we could incorrectly detect differences as statistically significant and we will get narrower confidence intervals than we should.
+
+2.  In some circumstances ignoring clustering can result in missing true relationships in the data. For instance, the scatter diagrams show 43 observations taken across 6 clusters. On the scatter diagram on the left the cluster has been ignored and it appears there is no correlation between x and y. On the scatter diagram on the right the cluster membership of each observation has been shown and there is a clear increase in y for each increase in x within each cluster.
+
+![London Educational Authorities dataset](images/lea-figure.png){fig-alt="Two panel figure showing regression models." fig-align="center"}
+
+### LEA Dataset
+
+A dataset of GCSE exam results from 1991 based upon a sample of 4059 school children from 65 schools in the London Education Authority area will be used in this session. This dataset is available from Canvas (`lea for notes.csv`) and has been modified to illustrate methods to handle clustering, a more complete analysis of the unmodified data is available (see Oxford Review of Education, 19:425-432). The following variables were recorded on each student:
+
+a\. `exam` (interval scale variable of average percentage exam result across all subjects);
+
+b\. `school` (school indicator ranging from 1 to 65);
+
+c\. `schgend` (1 mixed school; 2 boys only school; 3 girls only school);
+
+d\. `standlrt` (standardised student's score at age 11 on the London Reading Test).
+
+e\. `schfee` (1 denotes fee paying and 0 denotes non fee paying school)
+
+### Example
+
+We will investigate whether the mean results are different for pupils at a mixed gender school, boys only school or girls only school. Ignoring the cluster a simple regression could be conducted:
+
+```{r}
+#| label: LEA
+#| warning: false
+#| message: false
+
+# London Educational Authorities dataset
+# Load LEA data and code factors according to data dictionary
+leadata <- read_csv(here("data/lea for notes.csv")) %>% 
+  mutate(schgend = factor(schgend,
+                           labels = c("Mixed school",
+                                      "Boys only",
+                                      "Girls only")),
+         schfee = factor(schfee,
+                         labels = c("Non-fee", "Fee"))) 
+# Display first few rows of dataset
+leadata
+
+```
+
+```{r}
+#| label: simple
+#| warning: false
+#| message: false
+
+# Linear regression ignoring clustering
+modelsimple <- lm(exam ~ schgend, data=leadata)
+
+# Format the model output
+tbl_regression(modelsimple,
+               intercept = TRUE,
+               estimate_fun = label_style_sigfig(digits = 3)) %>% 
+  add_glance_source_note()
+
+```
+
+This initial regression appears to show that, compared with children in mixed schools, children in boys only schools have a higher mean by on average 1.8 points (95% CI 0.4, 3.3) and children in girls only schools have a higher mean by on average 3.7 (95% 2.7, 4.7). However, this analysis has entirely ignored the clustering as children from the same school are likely to be more similar than children at different schools and hence are not independent. Consequently, the standard errors are likely to be inappropriately small impacting the corresponding CIs and P-values.
+
+## Two stage analysis
+
+A simple, though slightly restrictive approach, to analyzing clustered data is to conduct a two stage method in which data are first summarized at the cluster level, using a suitable summary measure, and then the summary measure is analysed as though it were raw data using standard statistical techniques. This is a useful approach in the analysis of serial measurements and has been well described (see BMJ 1990;300:230).
+
+Often in clinical trials, patients are randomized to an intervention or a control and then over a period of time an outcome is repeatedly recorded. For example, imagine a clinical trial of a new blood pressure treatment in which 10 patients receive a new intervention and 10 patients receive a placebo and in each patient blood pressure is measured every week for 6 weeks. The 6 measurements on each patient will be highly correlated and hence standard statistical tests such as an independent samples t-test comparing the 60 observations in the intervention group (10 patients measured 6 times) and the 60 observations in the placebo group would not be appropriate. A two stage analysis method considers the cluster as the basic unit and uses the responses for each cluster to construct a single number which summarizes some aspect of the response in the cluster. We could summarize blood pressure at the patient level by calculating the mean blood pressure across the 6 week period in the 10 patients on the intervention and the 10 patients on placebo. This would allow us to validly use an independent samples t-test to compare the 10 means in the intervention and control group. Other summary measures could also be used depending upon the feature of the blood pressure in which we were interested. For example instead we could calculate the maximum blood pressure across the 6 week period in each patient or the slope of blood pressure against time in the 6 week period for each patient.
+
+A weakness of the summary analysis method is that it is slightly inflexible as it does not allow us to investigate more than one cluster level characteristic and it is difficult to account for individual and cluster level characteristics in the same analysis.
+
+### Example
+
+A two stage analysis of the exam data could be conducted by first summarizing at the cluster level i.e at the school level. In this instance, we will use the mean as the summary measure at the school level. In R, the following command can be used to create a dataset which contains a row for each school and contains the mean of the exam results at the school level and retains the school type indicator:
+
+```{r}
+# Calculate mean exam result by school
+leadata_collapsed <-leadata %>%
+  group_by(schgend, school) %>%
+  summarise(exam = mean(exam),
+            .groups = "drop")
+# Display first few records
+leadata_collapsed
+```
+
+We now have a dataset which contains one row per school and we can run the original regression on this dataset.
+
+```{r}
+#| label: two-stage
+
+# Linear regression of summarised data
+modelcollapsed <- lm(exam ~schgend, data=leadata_collapsed)
+
+# Format the model output
+tbl_regression(modelcollapsed,
+               intercept = TRUE,
+               estimate_fun = label_style_sigfig(digits = 3)) %>% 
+  add_glance_source_note()
+
+```
+
+This two stage analysis appears to show that, compared with children in mixed schools, children in boys only schools have a higher mean by on average 0.9 points (95% CI -3.8, 5.5) and children in girls only schools have a higher man by on average 3.6 (95% 0.02, 7.3). Notice how the analysis now contains only 65 observations and that the confidence intervals are much wider than previously and the p values are considerably larger.
+
+## Cluster-robust standard errors
+
+Another approach to handle data which contains clusters is to use cluster-robust standard errors (sometimes referred to as Huber and White or the sandwich estimator of variance). This approach relaxes the assumption of independence of the observations. In this approach a regression model with limited or no control for within-cluster error correlation is fitted, and then post-estimation we obtain cluster-robust standard errors. Therefore in this approach the estimates from an analysis ignoring clustering will not change but the standard errors will be altered to account for any clustering. These cluster-robust standard errors do not require specification of a model for within-cluster error correlation, but do require a large number of clusters, rather than just a large number of observations. We can use the `feols` function from the `fixest` package to compute these standard errors
+
+```{r}
+#|label: cluster
+
+# Fit the model accounting for clustering
+clustermodel <-feols(exam~schgend,data=leadata, cluster=~school)
+
+# Format the model output
+tbl_regression(clustermodel,
+               intercept = TRUE,
+               estimate_fun = label_style_sigfig(digits = 3)) %>% 
+  add_glance_source_note()
+
+
+```
+
+Notice the estimates from this analysis are identical to the original regression analysis but as this accounts for the clustering the confidence intervals are wider and p values larger. This analysis appears to show that, compared with children in mixed schools, children in boys only schools have a higher mean by on average 1.8 points (95% CI -2.2, 5.9) and children in girls only schools have a higher man by on average 3.7 (95% 0.3, 7.0).
+
+## Multilevel models
+
+Multilevel modelling is a method which explicitly models the clustering / hierarchal structure within the data by allowing for error terms at each level of hierarchy. A wide range of multilevel models are available. We will focus upon a very basic two level multilevel model called the random intercept model.
+
+![Random intercept model](images/random-intercept.png){fig-alt="Graph illustrating random intercept model." fig-align="center"}
+
+The random intercept model has the general format:
+
+$$
+y_{ij} = a + bx{ij} + u{j} + e{ij}
+$$
+
+where $y{ij}$ is the value of y for individual $i$ in cluster $j$;
+
+$x{ij}$ is a covariate for individual $i$ in cluster $j$;
+
+$b$ is the slope which is constant across clusters;
+
+$a$ is a constant which is the overall intercept;
+
+$u_j$ is the difference between the predicted value in cluster $j$ from the overall intercept, and is the same for all members of cluster $j$;
+
+$e_{ij}$ is the difference between the predicted value for individual $i$ in cluster $j$ and the overall intercept.
+
+In this equation, both $u_j$ and $e_{ij}$ are random quantities, whose means are equal to zero; they form the random part of the model. We assume that, being at different levels, these variables are uncorrelated and we further make the standard assumption that they follow a Normal distribution with variances, $\sigma^2_u$ and $\sigma^2_e$. It is the existence of the two random variables both $u_j$ and $e_{ij}$ that mark this out as a multilevel model. The variances are referred to as random parameters of the model. The quantities $a$ and $b$ are known as fixed parameters. A random intercept model with no covariates allows us to calculate the variance partition coefficient which is the total variance in y due to differences between clusters.
+
+The random intercept model is quite a basic multilevel model but it is also possible to apply more complex models such as random slope models which allow the slope of the association between $x$ and $y$ to be Normally distributed across clusters.
+
+![Random slope model](images/random-slope.png){fig-alt="Figures showing random slope model." fig-align="center"}
+
+In general, multilevel models are more suitable when there are many clusters. Multilevel models can be applied to data with three levels. These more complex models are beyond the scope of this course. Further reading is available here: http://www.bristol.ac.uk/cmm/learning/multilevel-models/.
+
+R has a number of commands to handle multilevel models depending upon the outcome type including:
+
+a\. Multilevel linear regression models for interval scale outcomes which use the command:
+
+`model <- lmer(outcome ~ 1 + variable1 + variable2 + (1 | clustervariable), data)`
+
+b\. Multilevel logistic regression models for binary outcomes which use the command:
+
+`model <- glmer(outcome ~ variable1 + variable2 + (1 | clustervariable), data, family=binomial(link=”logit”))`
+
+### Example
+
+A random intercept model could be used to investigate the exam data. The data has two levels, *pupils* nested within *schools*. This random intercept model assumes that the intercept at the school level is approximately Normally distributed and estimates the variance for this at this school level as well as the variance at the individual level. First in R we can calculate the variance partition coefficient by fitting a random intercept model with no covariates:
+
+```{r}
+#| label: multilevel1
+
+multilevelmodel <-lmer(exam~1+(1|school),data=leadata)
+summary(multilevelmodel)
+
+
+```
+
+The variance partition coefficient is calculated by:
+
+$$
+\sigma^2_u/(\sigma^2_e + \sigma^2_u) = 38.61/(190.75+38.61) = 0.168
+$$
+
+Around 17% of the total variance in exam score may be attributed to differences between the schools.
+
+```{r}
+#| label: multilevel2
+#| tbl-cap: Random intercept analysis, fixed effects estimates.
+
+multilevelmodel2 <-lmer(exam~1+schgend+(1|school), data=leadata)
+tbl_regression(multilevelmodel2,intercept = TRUE)
+
+```
+
+```{r}
+#| label: multilevel2-random
+#| tbl-cap: Random intercept analysis, random effects estimates.
+
+tbl_regression(multilevelmodel, 
+               tidy_fun = broom.mixed::tidy)
+
+```
+
+This random intercept multilevel analysis shows that, compared with children in mixed schools, children in boys only schools have a higher mean by on average 1.0 points (95% CI -3.6, 5.6) and children in girls only schools have a higher man by on average 3.9 (95% 0.3, 7.5).
+
+Further we can repeat this analysis adjusting for individual level confounders such as London Reading Test score (variable `standlrt`).
+
+```{r}
+#| label: multilevel3
+#| tbl-cap: Random intercept analysis including confounders, fixed effects estimates.
+ 
+multilevelmodel3 <-lmer(exam~1+schgend+standlrt+(1|school), data=leadata)
+tbl_regression(multilevelmodel3,intercept = TRUE)
+```
+
+This random intercept multilevel analysis shows that after adjusting for reading test score, compared with children in mixed schools, children in boys only schools have a higher mean by on average 1.5 points (95% CI -1.9, 4.8) and children in girls only schools have a higher man by on average 3.7 (95% 1.1, 6.3).
+
+### Netherlands dataset
+
+The analyses conducted in this chapter have been conducted on an interval scale outcome using linear regression but many research problems involve a binary response variable (i.e. dead or alive) which use logistic regression. We will illustrate corresponding analyses for a binary outcome using a dataset capturing referral to a physiotherapist from GPs in the Netherlands. These data have been modified from the original analysis (see Man and Society 67:389--411). The dataset contain 16,700 patients who consulted 158 GPs with back and or neck complaints and is available on canvas (physio for notes.dta). The primary outcome was referral to a physiotherapist. The following variables were captured
+
+a\. `referral` (1 denotes referred to physiotherapist and 0 denotes not referred);
+
+b\. `gpid` (GP indicator ranging from 1 to 158);
+
+c\. `patage` (patient age);
+
+d\. `patsex` (1 denotes male and 0 denotes female);
+
+e\. `practype` (1 denotes a GP practice with a single GP, 2 denotes a GP practice with 2 to 4 GPs, and 3 denotes a GP practice with 5 or more GPs);
+
+f\. `location` (1 denotes GP in rural location and 2 denotes GP in urban location).
+
+#### Ignoring clustering
+
+In this dataset, we will investigate whether the proportion referring to a GP is different in GPs in urban or rural locations, after adjusting for patient age and sex. First we can conduct an analysis ignoring the clustering:
+
+```{r}
+#| label: physio
+#| warning: false
+#| message: false
+
+# Load the physio data, coding factors as required
+physiodata <- read_csv(here("data/physio for notes.csv")) %>% 
+  mutate(location = fct_recode(as_factor(location), 
+                               Rural = "1",
+                               Urban = "2"))
+physiodata
+
+```
+
+```{r}
+#| label: physio-simple
+#| warning: false
+#| message: false
+
+# Linear regression ignoring clustering
+physiosimple <- glm(
+  referral ~ patage + patsex + location,
+  data = physiodata,
+  family = binomial(link = "logit")
+)
+
+# Format the model output
+tbl_regression(physiosimple,
+               intercept = TRUE,
+               exponentiate = TRUE,
+               estimate_fun = label_style_sigfig(digits = 3)) %>%
+  add_glance_source_note()
+
+```
+
+In this analysis there is evidence the odds of being referred by a GP from an urban area 1.11 (95% CI 1.02, 1.20) times that of a rural GP.
+
+#### Two stage analysis
+
+A two stage analysis was conducted by calculating the proportion referred at the practice level and then comparing the proportion referred between the urban rural GPs using an independent samples t-test.
+
+```{r}
+#| label: physio-t-test
+
+physiodata_collapsed <- physiodata %>% 
+  group_by(location, gpid) %>% 
+  summarise(referral = mean(referral , na.rm = TRUE), 
+     .groups = "drop")
+
+t.test(referral ~ location, 
+       data=physiodata_collapsed,
+       var.equal=TRUE)
+
+
+```
+
+These analysis shows little evidence of a difference in the mean proportion referred in rural and urban practices (19.3% versus 21.1%  respectively; P=0.26). NB. It is not easy to account for age and sex in this analysis.
+
+#### Cluster-robust standard error analysis
+
+The original logistic regression can easily be repeated using cluster robust standard errors to alter these standard errors.
+
+```{r}
+#| label: physio-robust
+
+# Estimate parameters from robust model
+physioclustermodel <- coeftest(physiosimple , vcov= vcovCL, type="HC0", cluster=~gpid)
+
+# Format the output
+tidy(physioclustermodel) %>% 
+  mutate(OR = exp(estimate), 
+         `95% LCL` = exp(estimate - 1.96 * std.error),
+         `95% UCL` = exp(estimate + 1.96 * std.error),
+         P = format.pval(p.value, digits = 3, eps = 0.001)) %>% 
+  select(term, OR, `95% LCL`, `95% UCL`, P) %>% 
+  gt() %>% 
+  fmt_number(decimals = 2)
+
+
+```
+
+As expected this analysis gives odds ratios identical to the original analysis but the standard errors are now much larger and now there is little evidence of a difference in the odds of being referred by a GP from an urban area or rural area (OR=1.11 95% CI 0.90, 1.37).
+
+#### Multilevel model
+
+```{r}
+#| label: physio-multi
+#| warning: false
+
+mlmodel <- glmer( referral ~ patage + patsex + location + (1 | gpid), 
+                  data = physiodata , 
+                  family = binomial(link = "logit"))
+
+tbl_regression(mlmodel, 
+               intercept = TRUE,
+               exponentiate = TRUE)
+
+```
+
+In this analysis there is evidence the odds of being referred by a GP from an urban area 1.10 (95% CI 0.92, 1.33) times that of a rural GP.
+
+## Other methods
+
+Other similar methods are available to handle clustered data such as Generalised Estimating Equation methods.
+
+## Practical analysis of clustered data
+
+Download the London Educational Authorities dataset available in Canvas (`lea for notes.csv`). Answer the following questions to investigate whether there is evidence of a difference in mean exam score in fee and non fee paying schools.
+
+1.  Use an independent samples t-test to compare the mean exam score in fee paying and non fee paying schools ignoring the clustering. Use the command: `t.test(outcome_variable~exposure_variable, data=dataset,var.equal=TRUE)`
+
+2.  Recreate the analysis in (1.) using a linear regression ignoring the clustering. Use the command: `lm(outcome_variable ~ factor(exposure _variable), data= dataset)`
+
+3.   What is the main weakness of your analysis in (1) and (2)?
+
+4.  Use a two stage analysis method to compare the mean exam score in fee paying and non fee paying schools. Use the command to collapse the data to school level:
+
+    `dataset_collapsed <- dataset %>% group_by(exposure_variable, cluster_variable) %>% summarise(outcome_variable = mean(outcome_variable, na.rm = TRUE), .groups = "drop")`
+
+5.  Use a linear regression model with cluster robust standard errors to compare the mean exam score in fee paying and non-fee paying schools. Use the command: f`eols(outcome_variable ~ exposure_variable +factor(exposure_variable),data= dataset, cluster=~ cluster_variable)`
+
+6.  Repeat the analysis in (5) additionally adjusting for the London reading test score.
+
+7.  Use a multilevel model with a random intercept at school level to compare the mean exam score in fee paying and non-fee paying schools. Use the command: `lmer(outcome_variable ~1+factor(exposure_variable)+(1| cluster_variable),data=dataset)`
+
+8.  Repeat the analysis in (7) additionally adjusting for the London reading test score.
+
+9.  Based upon these analysis what is your conclusion: Is there evidence of a difference in mean exam score in fee and non fee paying schools?

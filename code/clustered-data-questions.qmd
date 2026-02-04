@@ -1,0 +1,114 @@
+---
+title: "Analysis of clustered data"
+subtitle: "Practical questions"
+author: "Chris Cardwell - c.cardwell@qub.ac.uk"
+format: html
+self-contained: true
+date: last-modified
+date-format: iso
+toc: true
+editor: visual
+---
+
+```{r}
+#| label: setup
+#| include: false
+# Load the required packages
+library(tidyverse)
+library(here)
+library(gtsummary)
+library(fixest)
+library(lmerTest)
+library(broom.mixed)
+library(lmtest)
+library(sandwich)
+library(gt)
+```
+
+## Practical analysis of clustered data
+
+Download the London Educational Authorities dataset available in Canvas (`lea for notes.csv`) and put it in your `data` folder. Answer the following questions to investigate whether there is evidence of a difference in mean exam score in fee and non fee paying schools. Fill in empty code chunks or add narrative descriptions where required.
+
+```{r}
+#| label: load-lea
+
+# London Educational Authorities dataset
+# Load LEA data and code factors according to data dictionary
+
+
+```
+
+
+1.  Use an independent samples t-test to compare the mean exam score in fee paying and non fee paying schools ignoring the clustering. Use the command: `t.test(outcome_variable~exposure_variable, data=dataset,var.equal=TRUE)`
+
+```{r}
+#| label: q1
+
+
+```
+
+2.  Recreate the analysis in (1.) using a linear regression ignoring the clustering. Use the command: `lm(outcome_variable ~ factor(exposure _variable), data= dataset)`
+
+```{r}
+#| label: q2
+
+
+```
+
+3.   What is the main weakness of your analysis in (1) and (2)?
+
+
+
+4.  Use a two stage analysis method to compare the mean exam score in fee paying and non fee paying schools. Use the command to collapse the data to school level:
+
+    `dataset_collapsed <- dataset %>% group_by(exposure_variable, cluster_variable) %>% summarise(outcome_variable = mean(outcome_variable, na.rm = TRUE), .groups = "drop")`
+    
+```{r}
+#| label: q4
+
+
+```
+
+5.  Use a linear regression model with cluster robust standard errors to compare the mean exam score in fee paying and non-fee paying schools. Use the command: f`eols(outcome_variable ~ exposure_variable +factor(exposure_variable),data= dataset, cluster=~ cluster_variable)`
+
+```{r}
+#| label: q5
+
+# Fit the model accounting for clustering
+
+# Format the model output
+
+```
+
+6.  Repeat the analysis in (5) additionally adjusting for the London reading test score.
+
+```{r}
+#| label: q6
+
+# Fit the model accounting for clustering
+
+# Format the model output
+
+
+```
+
+7.  Use a multilevel model with a random intercept at school level to compare the mean exam score in fee paying and non-fee paying schools. Use the command: `lmer(outcome_variable ~1+factor(exposure_variable)+(1| cluster_variable),data=dataset)`
+
+```{r}
+#| label: q7
+
+
+
+```
+
+8.  Repeat the analysis in (7) additionally adjusting for the London reading test score.
+
+```{r}
+#| label: q8
+
+
+
+```
+
+9.  Based upon these analysis what is your conclusion: Is there evidence of a difference in mean exam score in fee and non fee paying schools?
+
